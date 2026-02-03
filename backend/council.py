@@ -5,17 +5,50 @@ from .openrouter import query_models_parallel, query_model
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
 
 
-async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
+async def stage1_collect_responses(
+    user_query: str,
+    conversation_history: List[Dict[str, Any]] = None,
+    document_context: str = ""
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        conversation_history: Optional list of previous messages in the conversation
+        document_context: Optional formatted text from attached documents
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
-    messages = [{"role": "user", "content": user_query}]
+    # Build the complete user prompt with optional document context
+    full_query = user_query
+    if document_context:
+        full_query = f"{document_context}\n\n{user_query}"
+    
+    # Build messages with conversation history if available
+    messages = []
+    if conversation_history:
+        # Add system message explaining the context
+        messages.append({
+            "role": "system",
+            "content": "You are participating in an LLM Council discussion. The user may ask follow-up questions about previous responses. Consider the conversation history when formulating your answer."
+        })
+        # Add previous exchanges
+        for msg in conversation_history:
+            if msg.get("role") == "user":
+                messages.append({"role": "user", "content": msg.get("content", "")})
+            elif msg.get("role") == "assistant":
+                # Include the final synthesized response from previous councils
+                stage3 = msg.get("stage3", {})
+                if stage3:
+                    messages.append({
+                        "role": "assistant", 
+                        "content": stage3.get("response", "")
+                    })
+    
+    # Add the current user query
+    messages.append({"role": "user", "content": full_query})
 
     # Query all models in parallel
     responses = await query_models_parallel(COUNCIL_MODELS, messages)
@@ -275,7 +308,7 @@ Title:"""
     messages = [{"role": "user", "content": title_prompt}]
 
     # Use gemini-2.5-flash for title generation (fast and cheap)
-    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+    response = await query_model("tngtech/deepseek-r1t2-chimera:free", messages, timeout=30.0)
 
     if response is None:
         # Fallback to a generic title
@@ -293,18 +326,28 @@ Title:"""
     return title
 
 
-async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
+async def run_full_council(
+    user_query: str,
+    conversation_history: List[Dict[str, Any]] = None,
+    document_context: str = ""
+) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
 
     Args:
         user_query: The user's question
+        conversation_history: Optional list of previous messages for context
+        document_context: Optional formatted text from attached documents
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
     # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
+    stage1_results = await stage1_collect_responses(
+        user_query, 
+        conversation_history, 
+        document_context
+    )
 
     # If no models responded successfully, return error
     if not stage1_results:
@@ -333,3 +376,4 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
     }
 
     return stage1_results, stage2_results, stage3_result, metadata
+
