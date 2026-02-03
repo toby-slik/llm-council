@@ -23,4 +23,9 @@ CHAIRMAN_MODEL = "tngtech/deepseek-r1t2-chimera:free"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Data directory for conversation storage
-DATA_DIR = "data/conversations"
+# On Vercel, we must use /tmp as the rest of the filesystem is read-only
+if os.getenv("VERCEL"):
+    DATA_DIR = "/tmp/conversations"
+else:
+    DATA_DIR = "data/conversations"
+

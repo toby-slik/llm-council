@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import os
 
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
@@ -15,14 +16,21 @@ from .documents import extract_text_from_file, format_document_context
 
 app = FastAPI(title="LLM Council API")
 
-# Enable CORS for local development
+# Enable CORS
+# In production on Vercel, we allow all for simplicity, or you can specify your domain
+if os.getenv("VERCEL"):
+    allow_origins = ["*"]
+else:
+    allow_origins = ["http://localhost:5173", "http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 class CreateConversationRequest(BaseModel):
