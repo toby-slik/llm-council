@@ -1,12 +1,14 @@
 import os
 import sys
 
-# Get the absolute path to the root directory
-# This ensures that 'backend' can be imported regardless of where the function starts
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if root_path not in sys.path:
-    sys.path.insert(0, root_path)
+# Get the path to the root directory
+# Vercel's task executes from /var/task
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
+# Now import the app
 from backend.main import app
 
-# This exports 'app' so Vercel's Python builder can find the FastAPI instance
+# This is the variable Vercel looks for
+handler = app
