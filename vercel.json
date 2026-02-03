@@ -1,5 +1,18 @@
 {
   "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -7,14 +20,12 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/frontend/dist/$1"
+      "destination": "/frontend/$1",
+      "check": true
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/index.html"
     }
-  ],
-  "framework": "vite",
-  "installCommand": "npm install && cd .. && uv pip install -r requirements.txt",
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.10"
-    }
-  }
+  ]
 }
