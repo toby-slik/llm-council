@@ -1,20 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import Stage1 from './Stage1';
-import Stage2 from './Stage2';
-import Stage3 from './Stage3';
-import './ChatInterface.css';
+import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import "./ChatInterface.css";
+import Stage1 from "./Stage1";
+import Stage2 from "./Stage2";
+import Stage3 from "./Stage3";
 
 export default function ChatInterface({
   conversation,
   onSendMessage,
   isLoading,
 }) {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -24,17 +26,39 @@ export default function ChatInterface({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSendMessage(input);
-      setInput('');
+      onSendMessage(input, attachedFiles);
+      setInput("");
+      setAttachedFiles([]);
     }
   };
 
   const handleKeyDown = (e) => {
     // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setAttachedFiles((prev) => [...prev, ...files]);
+    // Reset the input so the same file can be selected again
+    e.target.value = "";
+  };
+
+  const handleRemoveFile = (index) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   if (!conversation) {
@@ -55,11 +79,12 @@ export default function ChatInterface({
           <div className="empty-state">
             <h2>Start a conversation</h2>
             <p>Ask a question to consult the LLM Council</p>
+            <p className="hint">You can attach PDF or text files for context</p>
           </div>
         ) : (
           conversation.messages.map((msg, index) => (
             <div key={index} className="message-group">
-              {msg.role === 'user' ? (
+              {msg.role === "user" ? (
                 <div className="user-message">
                   <div className="message-label">You</div>
                   <div className="message-content">
@@ -76,7 +101,9 @@ export default function ChatInterface({
                   {msg.loading?.stage1 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 1: Collecting individual responses...</span>
+                      <span>
+                        Running Stage 1: Collecting individual responses...
+                      </span>
                     </div>
                   )}
                   {msg.stage1 && <Stage1 responses={msg.stage1} />}
@@ -120,11 +147,60 @@ export default function ChatInterface({
         <div ref={messagesEndRef} />
       </div>
 
-      {conversation.messages.length === 0 && (
-        <form className="input-form" onSubmit={handleSubmit}>
+      {/* Always show input form for follow-up questions */}
+      <form className="input-form" onSubmit={handleSubmit}>
+        {/* Attached files display */}
+        {attachedFiles.length > 0 && (
+          <div className="attached-files">
+            {attachedFiles.map((file, index) => (
+              <div key={index} className="attached-file">
+                <span className="file-icon">
+                  {file.name.toLowerCase().endsWith(".pdf") ? "📄" : "📝"}
+                </span>
+                <span className="file-name">{file.name}</span>
+                <span className="file-size">({formatFileSize(file.size)})</span>
+                <button
+                  type="button"
+                  className="remove-file"
+                  onClick={() => handleRemoveFile(index)}
+                  title="Remove file"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="input-row">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.py,.js,.ts,.jsx,.tsx,.css,.yaml,.yml,.toml,.ini,.cfg,.log"
+            onChange={handleFileSelect}
+            style={{ display: "none" }}
+          />
+
+          {/* Attach button */}
+          <button
+            type="button"
+            className="attach-button"
+            onClick={handleAttachClick}
+            disabled={isLoading}
+            title="Attach files (PDF, TXT, etc.)"
+          >
+            📎
+          </button>
+
           <textarea
             className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+            placeholder={
+              conversation.messages.length === 0
+                ? "Ask your question... (Shift+Enter for new line, Enter to send)"
+                : "Ask a follow-up question..."
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -138,8 +214,8 @@ export default function ChatInterface({
           >
             Send
           </button>
-        </form>
-      )}
+        </div>
+      </form>
     </div>
   );
 }

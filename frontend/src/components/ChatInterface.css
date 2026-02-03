@@ -33,6 +33,12 @@
   font-size: 16px;
 }
 
+.empty-state .hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #888;
+}
+
 .message-group {
   margin-bottom: 32px;
 }
@@ -102,11 +108,17 @@
 
 .input-form {
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 24px;
   border-top: 1px solid #e0e0e0;
   background: #fafafa;
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
 }
 
 .message-input {
@@ -160,4 +172,91 @@
   cursor: not-allowed;
   background: #ccc;
   border-color: #ccc;
+}
+
+/* File attachment styles */
+.attach-button {
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-button:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #4a90e2;
+}
+
+.attach-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attached-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.attached-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+  border: 1px solid #d0e7ff;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #333;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.attached-file .file-icon {
+  font-size: 14px;
+}
+
+.attached-file .file-name {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attached-file .file-size {
+  color: #888;
+  font-size: 12px;
+}
+
+.attached-file .remove-file {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.attached-file .remove-file:hover {
+  color: #e74c3c;
 }

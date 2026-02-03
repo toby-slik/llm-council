@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import ChatInterface from './components/ChatInterface';
-import { api } from './api';
-import './App.css';
+import { useEffect, useState } from "react";
+import { api } from "./api";
+import "./App.css";
+import ChatInterface from "./components/ChatInterface";
+import Sidebar from "./components/Sidebar";
 
 function App() {
   const [conversations, setConversations] = useState([]);
@@ -27,7 +27,7 @@ function App() {
       const convs = await api.listConversations();
       setConversations(convs);
     } catch (error) {
-      console.error('Failed to load conversations:', error);
+      console.error("Failed to load conversations:", error);
     }
   };
 
@@ -36,7 +36,7 @@ function App() {
       const conv = await api.getConversation(id);
       setCurrentConversation(conv);
     } catch (error) {
-      console.error('Failed to load conversation:', error);
+      console.error("Failed to load conversation:", error);
     }
   };
 
@@ -49,7 +49,7 @@ function App() {
       ]);
       setCurrentConversationId(newConv.id);
     } catch (error) {
-      console.error('Failed to create conversation:', error);
+      console.error("Failed to create conversation:", error);
     }
   };
 
@@ -57,13 +57,20 @@ function App() {
     setCurrentConversationId(id);
   };
 
-  const handleSendMessage = async (content) => {
+  const handleSendMessage = async (content, files = []) => {
     if (!currentConversationId) return;
 
     setIsLoading(true);
     try {
+      // Build user message content with file references
+      let displayContent = content;
+      if (files.length > 0) {
+        const fileNames = files.map((f) => f.name).join(", ");
+        displayContent = `[Attached files: ${fileNames}]\n\n${content}`;
+      }
+
       // Optimistically add user message to UI
-      const userMessage = { role: 'user', content };
+      const userMessage = { role: "user", content: displayContent };
       setCurrentConversation((prev) => ({
         ...prev,
         messages: [...prev.messages, userMessage],
@@ -71,7 +78,7 @@ function App() {
 
       // Create a partial assistant message that will be updated progressively
       const assistantMessage = {
-        role: 'assistant',
+        role: "assistant",
         stage1: null,
         stage2: null,
         stage3: null,
@@ -89,10 +96,23 @@ function App() {
         messages: [...prev.messages, assistantMessage],
       }));
 
+      // Choose the appropriate API method based on whether files are attached
+      const streamMethod =
+        files.length > 0
+          ? (onEvent) =>
+              api.sendMessageWithFiles(
+                currentConversationId,
+                content,
+                files,
+                onEvent,
+              )
+          : (onEvent) =>
+              api.sendMessageStream(currentConversationId, content, onEvent);
+
       // Send message with streaming
-      await api.sendMessageStream(currentConversationId, content, (eventType, event) => {
+      await streamMethod((eventType, event) => {
         switch (eventType) {
-          case 'stage1_start':
+          case "stage1_start":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -101,7 +121,7 @@ function App() {
             });
             break;
 
-          case 'stage1_complete':
+          case "stage1_complete":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -111,7 +131,7 @@ function App() {
             });
             break;
 
-          case 'stage2_start':
+          case "stage2_start":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -120,7 +140,7 @@ function App() {
             });
             break;
 
-          case 'stage2_complete':
+          case "stage2_complete":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -131,7 +151,7 @@ function App() {
             });
             break;
 
-          case 'stage3_start':
+          case "stage3_start":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -140,7 +160,7 @@ function App() {
             });
             break;
 
-          case 'stage3_complete':
+          case "stage3_complete":
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
@@ -150,28 +170,28 @@ function App() {
             });
             break;
 
-          case 'title_complete':
+          case "title_complete":
             // Reload conversations to get updated title
             loadConversations();
             break;
 
-          case 'complete':
+          case "complete":
             // Stream complete, reload conversations list
             loadConversations();
             setIsLoading(false);
             break;
 
-          case 'error':
-            console.error('Stream error:', event.message);
+          case "error":
+            console.error("Stream error:", event.message);
             setIsLoading(false);
             break;
 
           default:
-            console.log('Unknown event type:', eventType);
+            console.log("Unknown event type:", eventType);
         }
       });
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
       // Remove optimistic messages on error
       setCurrentConversation((prev) => ({
         ...prev,
