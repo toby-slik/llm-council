@@ -7,12 +7,16 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+# Import the FastAPI app
 try:
     from backend.main import app
 except ImportError as e:
-    # If imports fail, create a fallback app to report the error
+    # This part should only run if there's a serious path issue
     from fastapi import FastAPI
     app = FastAPI()
-    @app.get("/api/health")
-    async def health():
-        return {"status": "error", "message": str(e), "path": sys.path}
+    @app.get("/api/error")
+    def error():
+        return {"error": str(e), "sys_path": sys.path}
+
+# Vercel's Python builder looks for 'app' or 'handler'
+# If it's a FastAPI/ASGI app, it finds the 'app' variable.
