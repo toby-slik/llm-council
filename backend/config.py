@@ -1,26 +1,50 @@
-"""Configuration for the LLM Council."""
+"""Configuration for the Creative Effectiveness Evaluation System."""
 
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# OpenRouter API key
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# ============================================================================
+# API Keys
+# ============================================================================
 
-# Council members - list of OpenRouter model identifiers
-COUNCIL_MODELS = [
+# OpenRouter API (for free-tier models)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# Google API (for Gemini models - primary evaluation)
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# ============================================================================
+# Model Configuration
+# ============================================================================
+
+# Primary evaluation model (used for all 8 roles when Google API available)
+# Falls back to OpenRouter free models if Google API not configured
+GEMINI_MODEL = "gemini-3-pro-preview"  # Fast and capable
+
+# Fallback free models via OpenRouter
+OPENROUTER_MODELS = [
     "tngtech/deepseek-r1t2-chimera:free",
     "z-ai/glm-4.5-air:free",
     "qwen/qwen3-next-80b-a3b-instruct:free",
     "mistralai/mistral-small-3.1-24b-instruct:free",
 ]
 
-# Chairman model - synthesizes final response
-CHAIRMAN_MODEL = "tngtech/deepseek-r1t2-chimera:free"
+# ============================================================================
+# Evaluation Settings
+# ============================================================================
 
-# OpenRouter API endpoint
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Maximum time to wait for a single role evaluation (seconds)
+EVALUATION_TIMEOUT = 120.0
 
-# Data directory for conversation storage
-DATA_DIR = "data/conversations"
+# Whether to use Gemini (True) or OpenRouter free models (False)
+USE_GEMINI = GOOGLE_API_KEY is not None
+
+# ============================================================================
+# Storage
+# ============================================================================
+
+# Data directory for evaluation storage
+DATA_DIR = "data/evaluations"

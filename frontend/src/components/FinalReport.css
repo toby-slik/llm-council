@@ -1,0 +1,183 @@
+.final-report {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.final-report.recommend {
+  border-top: 4px solid #4caf50;
+}
+
+.final-report.revise {
+  border-top: 4px solid #ff9800;
+}
+
+.final-report.not-recommend {
+  border-top: 4px solid #f44336;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.report-header h2 {
+  margin: 0;
+  color: #1a1a2e;
+}
+
+.fei-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+}
+
+.fei-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.fei-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.hard-gate-failed {
+  background: #ffebee;
+  border: 2px solid #f44336;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.hard-gate-failed strong {
+  color: #c62828;
+  font-size: 1.1rem;
+}
+
+.hard-gate-failed p {
+  margin: 0.5rem 0 0;
+  color: #555;
+}
+
+.verdict-section {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.verdict-badge {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+}
+
+.verdict-badge.recommend {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.verdict-badge.revise {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.verdict-badge.not-recommend {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.confidence-badge {
+  font-size: 0.9rem;
+  color: #666;
+  background: #f0f0f0;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-column h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.strengths-list,
+.risks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.strengths-list li,
+.risks-list li {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.strengths-list li {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.risks-list li {
+  background: #fff3e0;
+  color: #bf360c;
+}
+
+.report-footer {
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.commercial-role {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.commercial-role strong {
+  color: #333;
+}
+
+.revision-guidance {
+  background: #fff8e1;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.revision-guidance strong {
+  color: #e65100;
+}
+
+.revision-guidance p {
+  margin: 0.5rem 0 0;
+  color: #555;
+}
