@@ -55,6 +55,7 @@
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
+  position: relative; /* For absolute positioning of delete button */
 }
 
 .conversation-item:hover {
@@ -70,9 +71,36 @@
   color: #333;
   font-size: 14px;
   margin-bottom: 4px;
+  padding-right: 20px; /* Make space for delete button */
 }
 
 .conversation-meta {
   color: #999;
   font-size: 12px;
+}
+
+.delete-conversation-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: #999;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0; /* Hidden by default */
+  transition: all 0.2s ease;
+}
+
+.conversation-item:hover .delete-conversation-btn {
+  opacity: 1; /* Show on hover */
+}
+
+.delete-conversation-btn:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #ff4444;
 }

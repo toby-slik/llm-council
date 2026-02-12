@@ -5,6 +5,7 @@ export default function Sidebar({
   currentConversationId,
   onSelectConversation,
   onNewConversation,
+  onDeleteConversation,
 }) {
   return (
     <div className="sidebar">
@@ -22,9 +23,8 @@ export default function Sidebar({
           conversations.map((conv) => (
             <div
               key={conv.id}
-              className={`conversation-item ${
-                conv.id === currentConversationId ? "active" : ""
-              }`}
+              className={`conversation-item ${conv.id === currentConversationId ? "active" : ""
+                }`}
               onClick={() => onSelectConversation(conv.id)}
             >
               <div className="conversation-title">
@@ -33,6 +33,22 @@ export default function Sidebar({
               <div className="conversation-meta">
                 {conv.message_count} messages
               </div>
+              <button
+                className="delete-conversation-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (
+                    window.confirm(
+                      "Are you sure you want to delete this evaluation?"
+                    )
+                  ) {
+                    onDeleteConversation(conv.id);
+                  }
+                }}
+                title="Delete Evaluation"
+              >
+                ×
+              </button>
             </div>
           ))
         )}

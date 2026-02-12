@@ -78,6 +78,8 @@ Terminal 1 (Backend):
 
 ```bash
 py -m uv run python -m backend.main
+
+uv run python -m backend.main
 ```
 
 Terminal 2 (Frontend):

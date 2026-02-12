@@ -165,6 +165,16 @@ function App() {
     setCurrentEvaluationId(id);
   };
 
+  const deleteEvaluation = (id) => {
+    const updated = evaluations.filter((ev) => ev.id !== id);
+    setEvaluations(updated);
+    localStorage.setItem("creative_evaluations", JSON.stringify(updated));
+
+    if (currentEvaluationId === id) {
+      handleNewEvaluation();
+    }
+  };
+
   // Convert evaluations to sidebar format
   const sidebarItems = evaluations.map((e) => ({
     id: e.id,
@@ -179,6 +189,7 @@ function App() {
         currentConversationId={currentEvaluationId}
         onSelectConversation={handleSelectEvaluation}
         onNewConversation={handleNewEvaluation}
+        onDeleteConversation={deleteEvaluation}
       />
 
       <div className="app-content">
