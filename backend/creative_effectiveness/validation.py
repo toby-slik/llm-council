@@ -4,10 +4,18 @@ Validates that all required inputs are present and sufficient before
 running expensive LLM evaluation prompts.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 from .models import EvaluationInput, CreativeAsset
+
+
+class DocumentStats(BaseModel):
+    """Statistics about the uploaded document."""
+    has_content: bool = False
+    character_count: int = 0
+    preview: Optional[str] = None
+    file_type: Optional[str] = None
 
 
 class ValidationResult(BaseModel):
@@ -17,6 +25,7 @@ class ValidationResult(BaseModel):
     incomplete_fields: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
     ready_to_evaluate: bool = False
+    document_stats: Optional[DocumentStats] = None
 
 
 # Minimum character thresholds for quality evaluation
@@ -83,19 +92,36 @@ def validate_input(data: Dict[str, Any]) -> ValidationResult:
     if not creative_data:
         missing.append("creative")
     else:
-        has_file = creative_data.get("file_path") is not None
+        file_path = creative_data.get("file_path")
+        has_file = file_path is not None
         description = creative_data.get("description", "")
-        has_description = len(description.strip()) >= MIN_CREATIVE_DESCRIPTION
+        # Check if we have extracted text from the file (injected by API)
+        extracted_text = creative_data.get("extracted_text", "")
         
-        if not has_file and not has_description:
-            if description and len(description.strip()) < MIN_CREATIVE_DESCRIPTION:
+        # Calculate effective description length (user input + file content)
+        total_len = len(description.strip()) + len(extracted_text.strip())
+        has_sufficient_content = total_len >= MIN_CREATIVE_DESCRIPTION
+        
+        if not has_file and not has_sufficient_content:
+            if total_len > 0:
                 incomplete.append("creative")
                 warnings.append(
-                    f"Creative description too short ({len(description.strip())} chars). "
-                    f"Need at least {MIN_CREATIVE_DESCRIPTION} characters or upload a file."
+                    f"Creative context too short ({total_len} chars). "
+                    f"Need at least {MIN_CREATIVE_DESCRIPTION} characters (description + file content)."
                 )
             else:
                 missing.append("creative")
+        elif has_file and not has_sufficient_content:
+             # We have a file but maybe it's empty or we couldn't extracting text
+             # If we tried to extract text (extracted_text is present but empty)
+             if "extracted_text" in creative_data:
+                 warnings.append(
+                     f"Uploaded file seems empty or contains little text. "
+                     f"Please ensure the file has content or add a description."
+                 )
+             # If validation error occurred during extraction
+             if creative_data.get("file_content_error"):
+                 warnings.append(f"Could not read uploaded file: {creative_data['file_content_error']}")
     
     # Check target audience length
     audience = data.get("target_audience", "")
@@ -131,15 +157,51 @@ def validate_input(data: Dict[str, Any]) -> ValidationResult:
         )
     
     # Determine overall validity
+    # SOFTER CHECKS: If we have a file, some missing fields are okay (LLM will try to find them in the doc)
+    has_file = creative_data.get("file_path") is not None
+    
+    if has_file:
+        # Move common missing but inferrable fields to warnings
+        inferrable = ["brand_name", "category", "target_audience", "campaign_objective", "brand_status"]
+        still_missing = []
+        for field in missing:
+            if field in inferrable:
+                warnings.append(f"Field '{field}' is missing from form. It will be inferred from the uploaded document.")
+            else:
+                still_missing.append(field)
+        missing = still_missing
+        
+        # Also be softer on market context
+        still_incomplete = []
+        for field in incomplete:
+            if "market_context" in field:
+                warnings.append(f"Market detail '{field}' missing. AI will use defaults or infer from document.")
+            else:
+                still_incomplete.append(field)
+        incomplete = still_incomplete
+
     is_valid = len(missing) == 0 and len(incomplete) == 0
-    ready = is_valid and len([w for w in warnings if "too short" in w.lower()]) == 0
+    # Even if not perfectly valid, if we have a file, we might be "ready" enough
+    ready = (is_valid and len([w for w in warnings if "too short" in w.lower()]) == 0) or (has_file and len(missing) == 0)
+    
+    # Create document stats if applicable
+    doc_stats = None
+    if has_file and "extracted_text" in creative_data:
+        text = creative_data["extracted_text"]
+        doc_stats = DocumentStats(
+            has_content=len(text.strip()) > 0,
+            character_count=len(text),
+            preview=text[:100] + "..." if len(text) > 100 else text,
+            file_type=creative_data.get("file_type")
+        )
     
     return ValidationResult(
         valid=is_valid,
         missing_fields=missing,
         incomplete_fields=incomplete,
         warnings=warnings,
-        ready_to_evaluate=ready
+        ready_to_evaluate=ready,
+        document_stats=doc_stats
     )
 
 

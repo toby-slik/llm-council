@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import "./App.css";
 import EvaluationForm from "./components/EvaluationForm";
@@ -16,7 +16,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 8 });
+  const [currentRoles, setCurrentRoles] = useState([]);
   const [error, setError] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef(null);
 
   // Load evaluations from localStorage on mount
   useEffect(() => {
@@ -76,6 +79,15 @@ function App() {
     setError(null);
     setEvaluationResult(null);
     setProgress({ current: 0, total: 8 });
+    setCurrentRoles([]);
+    setElapsedSeconds(0);
+
+    // Start a local timer for immediate feedback
+    if (timerRef.current) clearInterval(timerRef.current);
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
 
     try {
       await api.runEvaluationStream(formData, (eventType, event) => {
@@ -84,32 +96,60 @@ function App() {
             setProgress({ current: 0, total: event.total_roles });
             break;
 
+          case "role_update":
+            setCurrentRoles((prev) => {
+              const idx = prev.findIndex((r) => r.role_name === event.role.role_name);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], ...event.role };
+                return updated;
+              }
+              return [...prev, event.role];
+            });
+            break;
+
           case "role_complete":
             setProgress((prev) => ({ ...prev, current: event.progress }));
+            setCurrentRoles((prev) => {
+              const idx = prev.findIndex((r) => r.role_name === event.role.role_name);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], ...event.role };
+                return updated;
+              }
+              return [...prev, event.role];
+            });
             break;
 
           case "hard_gate_failed":
             setError(`HARD GATE FAILED: ${event.role}`);
             break;
 
+          case "heartbeat":
+            // Connection is alive - server confirmed elapsed time
+            break;
+
           case "complete":
             setEvaluationResult(event.result);
             saveEvaluation(formData, event.result);
             setIsLoading(false);
+            if (timerRef.current) clearInterval(timerRef.current);
             break;
 
           case "error":
             setError(event.message);
             setIsLoading(false);
+            if (timerRef.current) clearInterval(timerRef.current);
             break;
 
           default:
-            console.log("Unknown event:", eventType);
+            console.log("Unknown event:", eventType, event);
         }
       });
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
   };
 
@@ -165,12 +205,18 @@ function App() {
               {/* Loading Progress */}
               {isLoading && (
                 <div className="loading-overlay">
-                  <div className="loading-content">
-                    <div className="loading-spinner"></div>
-                    <h3>Evaluating Creative...</h3>
-                    <p>
-                      Role {progress.current} of {progress.total} complete
-                    </p>
+                  <div className="loading-content expanded">
+                    <div className="loading-header">
+                      <div className="loading-spinner small"></div>
+                      <div>
+                        <h3>Council is Deliberating...</h3>
+                        <p className="progress-text">
+                          {progress.current} of {progress.total} specialists finalized
+                          <span className="elapsed-timer"> · {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')} elapsed</span>
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="progress-bar">
                       <div
                         className="progress-fill"
@@ -179,9 +225,43 @@ function App() {
                         }}
                       ></div>
                     </div>
+                    
+                    {currentRoles.length === 0 && (
+                      <div className="waiting-for-roles">
+                        <p>🔄 Initializing specialist roles and building evaluation framework...</p>
+                      </div>
+                    )}
+
+                    <div className="specialist-grid">
+                      {currentRoles.map((role, i) => (
+                        <div key={i} className={`specialist-status-card ${role.status}`}>
+                          <div className="card-header">
+                            <span className="role-name">{role.role_name}</span>
+                            <span className={`status-tag ${role.status}`}>
+                              {role.status === 'processing' ? '⚡ Working' : 
+                               role.status === 'complete' ? '✓ Done' : '⏳ Queued'}
+                            </span>
+                          </div>
+                          {role.status === 'complete' ? (
+                            <div className="card-result">
+                              <span className={`verdict ${role.result.toLowerCase()}`}>{role.result}</span>
+                              <span className="score">Score: {role.score}/10</span>
+                              <span className="confidence">({Math.round(role.confidence * 100)}% conf.)</span>
+                            </div>
+                          ) : role.status === 'processing' ? (
+                            <div className="thinking-indicator">
+                              <div className="thinking-dots">
+                                <span></span><span></span><span></span>
+                              </div>
+                            </div>
+                          ) : null}
+                          <p className="status-note">{role.justification}</p>
+                        </div>
+                      ))}
+                    </div>
+
                     <p className="warning-text">
-                      ⚠️ This may take several minutes as 8 specialist AI roles
-                      evaluate your creative.
+                      ⚡ Specialist roles evaluate in parallel. This typically takes 30-90 seconds depending on LLM response times.
                     </p>
                   </div>
                 </div>

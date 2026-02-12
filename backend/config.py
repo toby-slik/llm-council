@@ -23,9 +23,11 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 # Primary evaluation model (used for all 8 roles when Google API available)
 # Falls back to OpenRouter free models if Google API not configured
 GEMINI_MODEL = "gemini-3-pro-preview"  # Fast and capable
+GEMINI_FLASH_MODEL = "gemini-3-flash-preview"  # Higher quota, lower latency
 
 # Fallback free models via OpenRouter
 OPENROUTER_MODELS = [
+    "nvidia/nemotron-3-nano-30b-a3b:free",
     "tngtech/deepseek-r1t2-chimera:free",
     "z-ai/glm-4.5-air:free",
     "qwen/qwen3-next-80b-a3b-instruct:free",

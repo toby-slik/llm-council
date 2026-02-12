@@ -30,7 +30,7 @@ export const api = {
   /**
    * Validate input before running evaluation.
    * @param {Object} data - Partial or complete evaluation input
-   * @returns {Promise<{valid: boolean, missing_fields: string[], incomplete_fields: string[], warnings: string[], ready_to_evaluate: boolean}>}
+   * @returns {Promise<{valid: boolean, missing_fields: string[], incomplete_fields: string[], warnings: string[], ready_to_evaluate: boolean, document_stats: Object}>}
    */
   async validateInput(data) {
     const response = await fetch(`${API_BASE}/api/creative/validate`, {
@@ -44,6 +44,24 @@ export const api = {
       throw new Error("Validation request failed");
     }
     return response.json();
+  },
+
+  /**
+   * Auto-extract structured data from document.
+   * @param {string} fileContent - Base64 encoded file content
+   * @param {string} fileName - Name of file
+   * @returns {Promise<Object>} - Extracted fields
+   */
+  async extractInput(fileContent, fileName) {
+      const response = await fetch(`${API_BASE}/api/creative/extract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_content: fileContent, file_name: fileName }),
+      });
+      if (!response.ok) {
+          throw new Error("Extraction failed");
+      }
+      return response.json();
   },
 
   /**
@@ -88,22 +106,38 @@ export const api = {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value);
-      const lines = chunk.split("\n");
+      buffer += decoder.decode(value, { stream: true });
+      
+      // SSE events are separated by double newlines
+      const parts = buffer.split("\n\n");
+      // Keep the last part in the buffer (it might be incomplete)
+      buffer = parts.pop();
 
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
+      for (const part of parts) {
+        if (!part.trim()) continue;
+        
+        // A single SSE message can have multiple data: lines
+        const lines = part.split("\n");
+        let eventData = "";
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            eventData += line.slice(6);
+          }
+        }
+
+        if (eventData) {
           try {
-            const event = JSON.parse(data);
+            const event = JSON.parse(eventData);
             onEvent(event.type, event);
           } catch (e) {
-            console.error("Failed to parse SSE event:", e);
+            console.error("Failed to parse SSE event data:", eventData, e);
           }
         }
       }

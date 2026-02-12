@@ -38,17 +38,30 @@ async def query_model(
                 headers=headers,
                 json=payload
             )
+            
+            if response.status_code == 429:
+                raise Exception(f"OpenRouter Error 429: {response.text}")
+            
+            if response.status_code != 200:
+                print(f"OpenRouter Error {response.status_code}: {response.text}")
             response.raise_for_status()
-
+            
             data = response.json()
+            if 'choices' not in data or not data['choices']:
+                print(f"OpenRouter returned no choices: {data}")
+                return None
+                
             message = data['choices'][0]['message']
-
+            
             return {
                 'content': message.get('content'),
                 'reasoning_details': message.get('reasoning_details')
             }
 
     except Exception as e:
+        # Re-raise 429 specifically so it can be handled by the UI/orchestrator
+        if "429" in str(e):
+            raise e
         print(f"Error querying model {model}: {e}")
         return None
 

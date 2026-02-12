@@ -79,6 +79,9 @@ async def query_gemini(
                 timeout=timeout,
             )
             
+            if response.status_code == 429:
+                raise Exception(f"Gemini API Error 429: Rate limit exceeded. {response.text[:200]}")
+            
             if response.status_code != 200:
                 print(f"Gemini API error: {response.status_code} - {response.text[:200]}")
                 return None
@@ -103,6 +106,8 @@ async def query_gemini(
         print(f"Gemini API timeout after {timeout}s")
         return None
     except Exception as e:
+        if "429" in str(e):
+            raise e
         print(f"Gemini API error: {e}")
         return None
 

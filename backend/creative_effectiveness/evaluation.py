@@ -112,8 +112,12 @@ def build_evaluation_prompt(
 ---
 
 ## YOUR TASK
-Evaluate this creative STRICTLY within your defined remit.
-Return ONLY the JSON output. No preamble, no commentary.
+Evaluate this creative deeply.
+1. Identify KEY DISCOVERIES in the creative execution.
+2. Provide COMPREHENSIVE REASONING for your score in the 'justification' field.
+3. Be analytical, critical, and specific. Explain what you found and why it matters.
+
+Return ONLY the JSON output. No preamble.
 """
     
     return prompt
@@ -127,7 +131,8 @@ async def evaluate_with_role(
     role: RoleDefinition,
     input_data: EvaluationInput,
     contextual_baseline: ContextualBaseline,
-    query_func  # Async function to query the LLM
+    query_func,  # Async function to query the LLM
+    on_role_complete=None  # Optional callback for progress updates
 ) -> RoleEvaluation:
     """
     Run evaluation for a single role.
@@ -137,11 +142,14 @@ async def evaluate_with_role(
         input_data: The evaluation input
         contextual_baseline: Locked contextual baseline
         query_func: Async function (messages) -> response
+        on_role_complete: Optional callback(role_name, result, status, justification)
         
     Returns:
         RoleEvaluation result
     """
     # Build the evaluation prompt
+    if on_role_complete:
+        on_role_complete(role.name, None, status="processing", justification="Building evaluation framework...")
     eval_prompt = build_evaluation_prompt(role, input_data, contextual_baseline)
     
     messages = [
@@ -151,6 +159,9 @@ async def evaluate_with_role(
     
     try:
         # Query the LLM
+        if on_role_complete:
+            on_role_complete(role.name, None, status="processing", justification="Querying specialist LLM...")
+        
         response = await query_func(messages)
         
         if response is None:
@@ -165,6 +176,9 @@ async def evaluate_with_role(
                 justification=f"Model query failed. Defaulting to neutral score with low confidence.",
                 layer_scores=[],
             )
+        
+        if on_role_complete:
+            on_role_complete(role.name, None, status="processing", justification="Parsing specialist response...")
         
         # Parse the JSON response
         content = response.get("content", "")
@@ -184,6 +198,10 @@ async def evaluate_with_role(
         )
         
     except Exception as e:
+        # Re-raise 429 specifically so it fails the entire evaluation as requested
+        if "429" in str(e):
+            raise e
+            
         # Error during evaluation - return low-confidence result
         return RoleEvaluation(
             role_id=role.id,
@@ -439,10 +457,20 @@ async def run_creative_evaluation(
     # Step 2: Run all role evaluations in parallel
     roles = get_all_roles()
     
+    # Notify initial status for all roles
+    if on_role_complete:
+        for role in roles:
+            # We use the same callback for status updates
+            on_role_complete(role.name, None, status="queued")
+    
     async def evaluate_role(role: RoleDefinition) -> RoleEvaluation:
-        result = await evaluate_with_role(role, input_data, contextual_baseline, query_func)
         if on_role_complete:
-            on_role_complete(role.name, result)
+            on_role_complete(role.name, None, status="processing")
+        
+        result = await evaluate_with_role(role, input_data, contextual_baseline, query_func, on_role_complete=on_role_complete)
+        
+        if on_role_complete:
+            on_role_complete(role.name, result, status="complete")
         return result
     
     role_evaluations = await asyncio.gather(*[evaluate_role(r) for r in roles])

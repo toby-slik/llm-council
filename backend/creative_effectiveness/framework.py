@@ -293,7 +293,7 @@ You must return your evaluation in the following JSON structure:
   "result": "PASS" or "FAIL",
   "score": 0-10 (only if PASS, null if FAIL),
   "confidence": 0.0-1.0,
-  "justification": "Your reasoning strictly limited to your remit",
+  "justification": "Comprehensive analysis including:\\n1. KEY DISCOVERIES: What specific details stand out?\\n2. STRATEGIC REASONING: Why does this succeed or fail?\\n3. EVIDENCE: Direct quotes or descriptions from the creative",
   "layer_scores": {
     "<layer_id>": {
       "verdict": "Pass" or "Weak Pass" or "Fail",
@@ -312,6 +312,7 @@ You must return your evaluation in the following JSON structure:
 RULES:
 - Score only the layers within your defined remit
 - Lock each score before proceeding to the next
-- No creative language, encouragement, or hedging
-- Justification must reference specific framework criteria
+- PROVIDE DEEP ANALYSIS. Do not be superficial.
+- Explain WHAT you discovered and WHY it matters.
+- Justification must be detailed and referenced.
 """

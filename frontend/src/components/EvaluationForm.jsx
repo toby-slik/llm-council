@@ -86,18 +86,125 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
   // Validation state
   const [validation, setValidation] = useState(null);
   const [validating, setValidating] = useState(false);
+  // Auto-fill state
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [thinkingSteps, setThinkingSteps] = useState([]);
+  const [extractionReasoning, setExtractionReasoning] = useState(null);
+
+  // ... (readFileAsBase64 exists below)
+
+  const handleAutoFill = async () => {
+    if (!uploadedFile) return;
+    
+    setIsExtracting(true);
+    setThinkingSteps(["Reading document content..."]);
+    setExtractionReasoning(null);
+
+    // Simulate thinking steps
+    const steps = [
+        "Analyzing brand information...",
+        "Extracting target audience details...",
+        "Identifying campaign objectives...",
+        "Mapping market context...",
+        "Finalizing extraction..."
+    ];
+    
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+        if (stepIdx < steps.length) {
+            setThinkingSteps(prev => [...prev.slice(-2), steps[stepIdx]]);
+            stepIdx++;
+        }
+    }, 1500);
+
+    try {
+      const base64Content = await new Promise((resolve, reject) => {
+         const reader = new FileReader();
+         reader.onload = () => resolve(reader.result.split(',')[1]);
+         reader.onerror = reject;
+         reader.readAsDataURL(uploadedFile);
+      });
+
+      const response = await api.extractInput(base64Content, uploadedFile.name);
+      
+      clearInterval(interval);
+
+      if (response.error) {
+          throw new Error(response.error);
+      }
+      
+      const extracted = response.data || {};
+      setExtractionReasoning(response.reasoning);
+      setThinkingSteps(prev => [...prev, "Extraction complete!"]);
+      
+      // Merge extracted data into form
+      setFormData(prev => ({
+          ...prev,
+          brand_name: extracted.brand_name || prev.brand_name || "",
+          category: extracted.category || prev.category || "",
+          campaign_objective: extracted.campaign_objective || prev.campaign_objective || "",
+          target_audience: extracted.target_audience || prev.target_audience || "",
+          brand_status: extracted.brand_status || prev.brand_status || "",
+          market_context: {
+              ...prev.market_context,
+              ...(extracted.market_context || {})
+          },
+          creative: {
+              ...prev.creative,
+              description: extracted.creative_description || prev.creative.description || ""
+          }
+      }));
+      
+    } catch (e) {
+      clearInterval(interval);
+      console.error("Auto-fill failed:", e);
+      alert(e.message || "Could not extract data from document. Please fill manually.");
+    }
+    setIsExtracting(false);
+  };
 
   // Debounced validation
   const validateForm = useCallback(async () => {
     setValidating(true);
     try {
-      const result = await api.validateInput(formData);
+      // Clone data to avoid mutating state
+      const dataToValidate = { ...formData };
+      
+      // If there is an uploaded file, read it and add content for validation
+      if (uploadedFile) {
+        // Only read document-like files that can be parsed as text
+        const isDoc = /\.(txt|md|docx|json|csv|py|js|ts|html|css)$/i.test(uploadedFile.name);
+        const isPdf = /\.pdf$/i.test(uploadedFile.name);
+        
+        if (isDoc || isPdf) {
+           try {
+             // Read file content
+             const base64Content = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(uploadedFile);
+             });
+             
+             // Add to creative object (non-mutating for formData)
+             const creativeWithFile = {
+               ...dataToValidate.creative,
+               file_content: base64Content
+             };
+             dataToValidate.creative = creativeWithFile;
+           } catch (e) {
+             console.error("Failed to read file for validation:", e);
+           }
+        }
+      }
+
+      const result = await api.validateInput(dataToValidate);
       setValidation(result);
     } catch (error) {
       console.error("Validation error:", error);
     }
     setValidating(false);
-  }, [formData]);
+  }, [formData, uploadedFile]);
 
   // Validate on form changes (debounced)
   useEffect(() => {
@@ -216,6 +323,58 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
             Upload Creative File <span className="optional-tag">Optional</span>
           </label>
           <div className="file-upload-area">
+            {uploadedFile && (
+               <div className="document-status-area">
+                 {validating ? (
+                   <div className="document-stats inspecting">
+                     <span className="inspecting-spinner"></span>
+                     <span>Inspecting document content...</span>
+                   </div>
+                 ) : validation?.document_stats ? (
+                   <div className={`document-stats ${!validation.document_stats.has_content ? 'warning' : ''}`}>
+                     <span className="stats-icon">{validation.document_stats.has_content ? '✓' : '⚠'}</span>
+                     <span className="stats-detail">
+                       {validation.document_stats.has_content 
+                         ? `Analyzed: ${validation.document_stats.character_count} chars found`
+                         : "Warning: No readable text found"}
+                     </span>
+                     {validation.document_stats.has_content && (
+                        <button 
+                            type="button"
+                            className="auto-fill-btn"
+                            onClick={handleAutoFill}
+                            disabled={isExtracting}
+                        >
+                            {isExtracting ? "Extracting..." : "Auto-fill Form from Document"}
+                        </button>
+                     )}
+                   </div>
+                 ) : null}
+
+                 {isExtracting && (
+                    <div className="thinking-trace">
+                        {thinkingSteps.map((step, i) => (
+                            <div key={i} className="thinking-step">
+                                <span className="status">●</span>
+                                <span>{step}</span>
+                            </div>
+                        ))}
+                    </div>
+                 )}
+
+                 {extractionReasoning && (
+                    <div className="thinking-trace">
+                        <div className="thinking-step">
+                             <span className="status">AI Reasoned:</span>
+                        </div>
+                        <div className="thinking-reasoning">
+                            {extractionReasoning}
+                        </div>
+                    </div>
+                 )}
+               </div>
+            )}
+
             {uploadedFile ? (
               <div className="file-preview">
                 <span className="file-icon">📄</span>
@@ -235,11 +394,11 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
               <label className="file-upload-label">
                 <input
                   type="file"
-                  accept="image/*,video/*,application/pdf"
+                  accept="image/*,video/*,application/pdf,.md,.txt,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleFileUpload}
                 />
                 <span className="upload-icon">📁</span>
-                <span>Click to upload image, video, or PDF</span>
+                <span>Click to upload image, video, PDF, or document (MD, TXT, DOCX)</span>
               </label>
             )}
           </div>
