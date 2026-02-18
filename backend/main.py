@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import os
 
 from .creative_effectiveness.models import EvaluationInput, EvaluationResult
 from .creative_effectiveness.validation import validate_input, ValidationResult
@@ -17,7 +18,13 @@ from .config import USE_GEMINI
 
 app = FastAPI(title="Creative Effectiveness Evaluation API")
 
-# Enable CORS for local development
+# Enable CORS
+# In production on Vercel, we allow all for simplicity, or you can specify your domain
+if os.getenv("VERCEL"):
+    allow_origins = ["*"]
+else:
+    allow_origins = ["http://localhost:5173", "http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
