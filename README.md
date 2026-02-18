@@ -21,11 +21,13 @@ This project was 99% vibe coded as a fun Saturday hack because I wanted to explo
 The project uses [uv](https://docs.astral.sh/uv/) for project management.
 
 **Backend:**
+
 ```bash
-uv sync
+py -m uv sync
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm install
@@ -60,18 +62,28 @@ CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 ## Running the Application
 
 **Option 1: Use the start script**
-```bash
-./start.sh
-```
+
+- **Mac/Linux:**
+  ```bash
+  ./start.sh
+  ```
+- **Windows (PowerShell):**
+  ```powershell
+  ./start.ps1
+  ```
 
 **Option 2: Run manually**
 
 Terminal 1 (Backend):
+
 ```bash
+py -m uv run python -m backend.main
+
 uv run python -m backend.main
 ```
 
 Terminal 2 (Frontend):
+
 ```bash
 cd frontend
 npm run dev

@@ -1,0 +1,238 @@
+.role-results {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.role-results h3 {
+  margin-bottom: 1rem;
+  color: #1a1a2e;
+}
+
+.role-results-empty {
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* Tab Navigation */
+.role-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.role-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.role-tab:hover {
+  background: #e8f4ff;
+  border-color: #4a90e2;
+}
+
+.role-tab.active {
+  background: #4a90e2;
+  border-color: #4a90e2;
+  color: white;
+}
+
+.role-tab.hard-gate {
+  border-left: 3px solid #ff9800;
+}
+
+.role-tab.failed {
+  background: #ffebee;
+  border-color: #ef5350;
+}
+
+.role-tab.active.failed {
+  background: #ef5350;
+}
+
+.role-name {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.result-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.result-badge.pass {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.result-badge.fail {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.hard-gate-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 0.6rem;
+  background: #ff9800;
+  color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Role Detail */
+.role-detail {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.role-header h4 {
+  margin: 0;
+  color: #1a1a2e;
+}
+
+.role-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.result-large {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+
+.result-large.pass {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.result-large.fail {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.score,
+.confidence {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.hard-gate-notice {
+  background: #fff3e0;
+  border: 1px solid #ff9800;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: #e65100;
+  font-weight: 500;
+}
+
+.justification {
+  margin-bottom: 1.5rem;
+}
+
+.justification h5 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.justification p {
+  color: #555;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Layer Scores */
+.layer-scores h5 {
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.layer-score-item {
+  background: white;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.layer-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.layer-id {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+.layer-name {
+  flex: 1;
+  color: #333;
+}
+
+.layer-verdict {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.layer-verdict.pass {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.layer-verdict.weak-pass {
+  background: #fff9c4;
+  color: #f57f17;
+}
+
+.layer-verdict.fail {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.fail-conditions {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+}
+
+.fail-condition {
+  display: block;
+  color: #e65100;
+  font-size: 0.85rem;
+}

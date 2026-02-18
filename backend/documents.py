@@ -47,6 +47,13 @@ def extract_text_from_file(filename: str, content: bytes) -> str:
     
     if lower_name.endswith('.pdf'):
         return extract_text_from_pdf(content)
+    elif lower_name.endswith('.docx'):
+        try:
+            from docx import Document
+            doc = Document(BytesIO(content))
+            return "\n".join([para.text for para in doc.paragraphs])
+        except Exception as e:
+            raise ValueError(f"Failed to parse Word document: {str(e)}")
     elif lower_name.endswith(('.txt', '.md', '.csv', '.json', '.xml', '.html', '.py', '.js', '.ts', '.jsx', '.tsx', '.css', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.log')):
         # Text-based files - try to decode as UTF-8, fallback to latin-1
         try:
