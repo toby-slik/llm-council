@@ -6,7 +6,11 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "50mb"
+        "maxLambdaSize": "50mb",
+        "includeFiles": [
+          "backend/**",
+          "api/**"
+        ]
       }
     },
     {
@@ -37,5 +41,8 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "PYTHONPATH": "/var/task"
+  }
 }
