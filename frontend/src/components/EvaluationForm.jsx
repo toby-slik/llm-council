@@ -119,16 +119,17 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
 
     try {
       // Vercel Function body limit is ~4.5MB.
-      // If file is large AND we are in production (not localhost), use Blob storage direct upload.
-      // Locally, we fallback to base64 (assuming local server has higher limits).
-      const isLargeFile = uploadedFile.size > 4 * 1024 * 1024; // 4MB safety margin
+      // Base64 encoding adds ~33% overhead.
+      // 3MB * 1.33 = ~4MB, which is safe.
+      // 4MB * 1.33 = ~5.3MB, which causes 413 errors.
+      const isLargeFile = uploadedFile.size > 3 * 1024 * 1024; // 3MB limit
       const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
       let base64Content = null;
       let fileUrl = null;
 
       if (isLargeFile && !isLocalhost) {
-        setThinkingSteps(prev => [...prev, "Large file detected (>4MB). Uploading to Vercel Blob..."]);
+        setThinkingSteps(prev => [...prev, "Large file detected (>3MB). Uploading to Vercel Blob..."]);
         try {
           // Direct upload to Vercel Blob using client SDK + Node.js token helper
           fileUrl = await api.uploadToStorage(uploadedFile);
