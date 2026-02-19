@@ -192,7 +192,7 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
     setIsExtracting(false);
   };
 
-  // Debounced validation
+  // validateForm handles validation logic
   const validateForm = useCallback(async () => {
     setValidating(true);
     try {
@@ -230,7 +230,8 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
 
             if (isLargeFile) {
               // Don't send content, but tell backend we have "text"
-              creativeWithFile.extracted_text = `[Large file uploaded (${(uploadedFile.size / 1024 / 1024).toFixed(1)} MB). Content assumed valid for validation checks.]` + " ".repeat(200);
+              // We use a special flag or text so validation knows we have a file but chose not to send it
+              creativeWithFile.description = creativeWithFile.description || `[Large file uploaded (${(uploadedFile.size / 1024 / 1024).toFixed(1)} MB). Content assumed valid for validation checks.]`;
             } else {
               creativeWithFile.file_content = base64Content;
             }

@@ -63,6 +63,7 @@ export const api = {
       const newBlob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/creative/upload/token', // Route to our Node.js helper
+        addRandomSuffix: true, // Prevent "blob already exists" errors
       });
       return newBlob.url;
     } catch (error) {
@@ -79,12 +80,11 @@ export const api = {
    * @returns {Promise<Object>} - Extracted fields
    */
   async extractInput(fileContent, fileName, fileUrl = null) {
-    const body = { file_name: fileName };
-    if (fileUrl) {
-      body.file_url = fileUrl;
-    } else {
-      body.file_content = fileContent;
-    }
+    const body = {
+      file_name: fileName,
+      file_url: fileUrl || null,
+      file_content: fileContent || null
+    };
 
     const response = await fetch(`${API_BASE}/api/creative/extract`, {
       method: "POST",
@@ -92,7 +92,13 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error("Extraction failed");
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.detail || "Extraction failed");
+      } catch (e) {
+        throw new Error(`Extraction failed: ${response.status} ${response.statusText}`);
+      }
     }
     return response.json();
   },
