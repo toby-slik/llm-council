@@ -13,7 +13,35 @@ from .creative_effectiveness import (
 )
 from .documents import extract_text_from_file
 
+
 router = APIRouter(prefix="/api/creative", tags=["creative"])
+
+@router.get("/upload/presigned")
+async def get_upload_url(filename: str, content_type: str):
+    """
+    Generate a presigned URL for direct client-side upload.
+    This allows bypassing the Vercel 4.5MB body size limit by uploading directly to object storage.
+    
+    TODO: Integrate with your storage provider (S3, Vercel Blob, Cloudflare R2, Google Cloud Storage).
+    
+    Example S3 implementation:
+    ```python
+    import boto3
+    s3_client = boto3.client('s3')
+    try:
+        url = s3_client.generate_presigned_url('put_object',
+            Params={'Bucket': 'my-bucket', 'Key': filename, 'ContentType': content_type},
+            ExpiresIn=3600)
+        return {"url": url, "method": "PUT", "public_url": f"https://my-bucket.s3.amazonaws.com/{filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    ```
+    """
+    # Placeholder response
+    raise HTTPException(
+        status_code=501, 
+        detail="Direct upload not configured. Please implement storage provider logic in /api/creative/upload/presigned"
+    )
 
 class ValidateRequest(BaseModel):
     brand_name: Optional[str] = None
@@ -51,33 +79,50 @@ async def get_config():
 @router.post("/validate")
 async def validate(data: Dict[str, Any]):
     """Validate input data before evaluation."""
+    import httpx
+    
     # If file content is provided in base64, extracting text for validation
     creative = data.get("creative", {})
     file_content_b64 = creative.get("file_content")
+    file_url = creative.get("file_url")
     filename = creative.get("file_path")
     
-    if file_content_b64 and filename:
+    if (file_content_b64 or file_url) and filename:
         try:
-            # Decode base64
-            content_bytes = base64.b64decode(file_content_b64)
-            # Extract text using shared document logic
-            extracted_text = extract_text_from_file(filename, content_bytes)
-            # Inject extracted text into description for validation if description is empty
-            if not creative.get("description"):
-                creative["description"] = f"[Extracted from {filename}]:\n{extracted_text[:1000]}..." # Truncate for validation check
+            content_bytes = None
             
-            # Also valid if we successfully extracted text
-            creative["has_valid_content"] = True
+            if file_url:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(file_url)
+                    if resp.status_code == 200:
+                        content_bytes = resp.content
+                    else:
+                        creative["file_error"] = f"Failed to download file: {resp.status_code}"
+            
+            elif file_content_b64:
+                # Decode base64
+                content_bytes = base64.b64decode(file_content_b64)
+            
+            if content_bytes:
+                # Extract text using shared document logic
+                extracted_text = extract_text_from_file(filename, content_bytes)
+                # Inject extracted text into description for validation if description is empty
+                if not creative.get("description"):
+                    creative["description"] = f"[Extracted from {filename}]:\n{extracted_text[:1000]}..." # Truncate for validation check
+                
+                # Also valid if we successfully extracted text
+                creative["has_valid_content"] = True
             
         except Exception as e:
             creative["file_error"] = str(e)
             
     result = validate_input(data)
-    result = validate_input(data)
+    # result = validate_input(data) # Removed duplicate call
     return result
 
 class ExtractRequest(BaseModel):
-    file_content: str  # Base64 encoded
+    file_content: Optional[str] = None  # Base64 encoded
+    file_url: Optional[str] = None
     file_name: str
 
 @router.post("/extract")
@@ -85,11 +130,22 @@ async def extract_from_document(request: ExtractRequest):
     """
     Auto-extract structured evaluation input from a document.
     """
+    import httpx
     try:
         from .llm import query_llm
         
         # 1. Decode and extract text
-        content_bytes = base64.b64decode(request.file_content)
+        if request.file_url:
+             async with httpx.AsyncClient() as client:
+                resp = await client.get(request.file_url)
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=400, detail=f"Failed to download file from URL: {resp.status_code}")
+                content_bytes = resp.content
+        elif request.file_content:
+            content_bytes = base64.b64decode(request.file_content)
+        else:
+            raise HTTPException(status_code=400, detail="Either file_content or file_url must be provided")
+            
         text = extract_text_from_file(request.file_name, content_bytes)
         
         # 2. Prepare LLM prompt

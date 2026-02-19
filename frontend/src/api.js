@@ -1,3 +1,5 @@
+import { upload } from "@vercel/blob/client";
+
 /**
  * API client for the Creative Effectiveness Evaluation backend.
  */
@@ -53,16 +55,41 @@ export const api = {
   },
 
   /**
+   * Upload file to Vercel Blob using client-side SDK.
+   * @param {File} file 
+   */
+  async uploadToStorage(file) {
+    try {
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/creative/upload/token', // Route to our Node.js helper
+      });
+      return newBlob.url;
+    } catch (error) {
+      console.error("Blob upload failed:", error);
+      throw new Error("Failed to upload file to storage.");
+    }
+  },
+
+  /**
    * Auto-extract structured data from document.
-   * @param {string} fileContent - Base64 encoded file content
+   * @param {string|null} fileContent - Base64 encoded file content (optional if fileUrl provided)
    * @param {string} fileName - Name of file
+   * @param {string|null} fileUrl - URL to file in storage (optional if fileContent provided)
    * @returns {Promise<Object>} - Extracted fields
    */
-  async extractInput(fileContent, fileName) {
+  async extractInput(fileContent, fileName, fileUrl = null) {
+    const body = { file_name: fileName };
+    if (fileUrl) {
+      body.file_url = fileUrl;
+    } else {
+      body.file_content = fileContent;
+    }
+
     const response = await fetch(`${API_BASE}/api/creative/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_content: fileContent, file_name: fileName }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       throw new Error("Extraction failed");

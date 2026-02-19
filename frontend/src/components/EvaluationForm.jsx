@@ -118,14 +118,42 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
     }, 1500);
 
     try {
-      const base64Content = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(uploadedFile);
-      });
+      // Vercel Function body limit is ~4.5MB.
+      // If file is large AND we are in production (not localhost), use Blob storage direct upload.
+      // Locally, we fallback to base64 (assuming local server has higher limits).
+      const isLargeFile = uploadedFile.size > 4 * 1024 * 1024; // 4MB safety margin
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-      const response = await api.extractInput(base64Content, uploadedFile.name);
+      let base64Content = null;
+      let fileUrl = null;
+
+      if (isLargeFile && !isLocalhost) {
+        setThinkingSteps(prev => [...prev, "Large file detected (>4MB). Uploading to Vercel Blob..."]);
+        try {
+          // Direct upload to Vercel Blob using client SDK + Node.js token helper
+          fileUrl = await api.uploadToStorage(uploadedFile);
+          setThinkingSteps(prev => [...prev, "Upload complete. Processing..."]);
+
+        } catch (uploadError) {
+          console.error("Direct upload failed:", uploadError);
+          throw new Error("Failed to upload large file to storage. Please try a smaller file or check your connection.");
+        }
+      } else {
+        // Standard Base64 for small files or localhost
+        if (isLargeFile && isLocalhost) {
+          setThinkingSteps(prev => [...prev, "Large file on localhost: Using direct POST (no size limit)..."]);
+        }
+
+        base64Content = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedFile);
+        });
+      }
+
+      // 3. Extract using Content or URL
+      const response = await api.extractInput(base64Content, uploadedFile.name, fileUrl);
 
       clearInterval(interval);
 
