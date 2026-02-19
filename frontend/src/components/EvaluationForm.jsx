@@ -375,15 +375,19 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
                     <span className="inspecting-spinner"></span>
                     <span>Inspecting document content...</span>
                   </div>
-                ) : validation?.document_stats ? (
-                  <div className={`document-stats ${!validation.document_stats.has_content ? 'warning' : ''}`}>
-                    <span className="stats-icon">{validation.document_stats.has_content ? '✓' : '⚠'}</span>
-                    <span className="stats-detail">
-                      {validation.document_stats.has_content
-                        ? `Analyzed: ${validation.document_stats.character_count} chars found`
-                        : "Warning: No readable text found"}
+                ) : (
+                  <div className={`document-stats ${(!validation?.document_stats?.has_content && uploadedFile.size <= 1024 * 1024) ? 'warning' : ''}`}>
+                    <span className="stats-icon">
+                      {validation?.document_stats?.has_content ? '✓' : uploadedFile.size > 1024 * 1024 ? 'ℹ' : '⚠'}
                     </span>
-                    {validation.document_stats.has_content && (
+                    <span className="stats-detail">
+                      {validation?.document_stats?.has_content
+                        ? `Analyzed: ${validation.document_stats.character_count} chars found`
+                        : uploadedFile.size > 1024 * 1024
+                          ? `Large file (${(uploadedFile.size / 1024 / 1024).toFixed(1)} MB) ready for extraction`
+                          : "Warning: No readable text found"}
+                    </span>
+                    {(validation?.document_stats?.has_content || uploadedFile.size > 1024 * 1024) && (
                       <button
                         type="button"
                         className="auto-fill-btn"
@@ -394,7 +398,7 @@ export default function EvaluationForm({ onSubmit, isLoading }) {
                       </button>
                     )}
                   </div>
-                ) : null}
+                )}
 
                 {isExtracting && (
                   <div className="thinking-trace">
