@@ -49,4 +49,6 @@ USE_GEMINI = GOOGLE_API_KEY is not None
 # ============================================================================
 
 # Data directory for evaluation storage
-DATA_DIR = "data/evaluations"
+# On Vercel, only /tmp is writable. Locally, use the data/ directory.
+import os as _os
+DATA_DIR = "/tmp/evaluations" if _os.getenv("VERCEL") else "data/evaluations"

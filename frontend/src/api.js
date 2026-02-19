@@ -5,7 +5,7 @@
 // Use current origin in production, or localhost:8001 in development
 const API_BASE =
   window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
+    window.location.hostname === "127.0.0.1"
     ? "http://localhost:8001"
     : "";
 
@@ -14,12 +14,13 @@ export const api = {
    * Health check and get backend info.
    */
   async getHealth() {
-    const response = await fetch(`${API_BASE}/`);
+    const response = await fetch(`${API_BASE}/api/creative/config`);
     if (!response.ok) {
       throw new Error("Backend not available");
     }
     return response.json();
   },
+
 
   /**
    * Get evaluation configuration (roles, backend info).
@@ -58,15 +59,15 @@ export const api = {
    * @returns {Promise<Object>} - Extracted fields
    */
   async extractInput(fileContent, fileName) {
-      const response = await fetch(`${API_BASE}/api/creative/extract`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_content: fileContent, file_name: fileName }),
-      });
-      if (!response.ok) {
-          throw new Error("Extraction failed");
-      }
-      return response.json();
+    const response = await fetch(`${API_BASE}/api/creative/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_content: fileContent, file_name: fileName }),
+    });
+    if (!response.ok) {
+      throw new Error("Extraction failed");
+    }
+    return response.json();
   },
 
   /**
@@ -118,7 +119,7 @@ export const api = {
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      
+
       // SSE events are separated by double newlines
       const parts = buffer.split("\n\n");
       // Keep the last part in the buffer (it might be incomplete)
@@ -126,11 +127,11 @@ export const api = {
 
       for (const part of parts) {
         if (!part.trim()) continue;
-        
+
         // A single SSE message can have multiple data: lines
         const lines = part.split("\n");
         let eventData = "";
-        
+
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             eventData += line.slice(6);

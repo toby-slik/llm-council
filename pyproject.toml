@@ -1,3 +1,9 @@
+[tool.pyright]
+include = ["."]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+
 [project]
 name = "llm-council"
 version = "0.1.0"
