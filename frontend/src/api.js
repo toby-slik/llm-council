@@ -63,7 +63,6 @@ export const api = {
       const newBlob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/creative/upload/token', // Route to our Node.js helper
-        addRandomSuffix: true, // Prevent "blob already exists" errors
       });
       return newBlob.url;
     } catch (error) {

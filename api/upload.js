@@ -11,6 +11,7 @@ module.exports = async function (request, response) {
                 // Here you can verify if the user is authorized to upload
                 return {
                     allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'text/markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                    addRandomSuffix: true,
                     tokenPayload: JSON.stringify({
                         // optional payload
                     }),
