@@ -414,7 +414,8 @@ async def get_config():
 
 
 class ExtractRequest(BaseModel):
-    file_content: str  # Base64 encoded
+    file_content: Optional[str] = None  # Base64 encoded
+    file_url: Optional[str] = None
     file_name: str
 
 
@@ -426,9 +427,20 @@ async def extract_from_document(request: ExtractRequest):
     try:
         from .documents import extract_text_from_file
         import base64
+        import httpx
         
         # 1. Decode and extract text
-        content_bytes = base64.b64decode(request.file_content)
+        if request.file_url:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(request.file_url)
+                if resp.status_code != 200:
+                    return {"error": f"Failed to download file from URL: {resp.status_code}"}
+                content_bytes = resp.content
+        elif request.file_content:
+            content_bytes = base64.b64decode(request.file_content)
+        else:
+            return {"error": "Either file_content or file_url must be provided"}
+            
         text = extract_text_from_file(request.file_name, content_bytes)
         
         # 2. Prepare LLM prompt
