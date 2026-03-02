@@ -181,4 +181,78 @@ export const api = {
       }
     }
   },
+
+  /**
+   * Analyze uploaded creatives (video, image, document) to extract context baseline.
+   * @param {File[]} files - Array of files to upload.
+   * @returns {Promise<Object>} - Extracted context and missing gaps
+   */
+  async analyzeContext(files) {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append("files", file);
+    });
+
+    const response = await fetch(`${API_BASE}/api/creative/analyze-context`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Compiles gaps + user answers into structured brief.
+   * @param {Object} extractedContext - The originally extracted context.
+   * @param {Array<{question: string, answer: string}>} qaPairs - User's answers.
+   */
+  async clarifyBrief(extractedContext, qaPairs) {
+    const response = await fetch(`${API_BASE}/api/creative/clarify-brief`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ extracted_context: extractedContext, qa_pairs: qaPairs }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Clarification failed");
+    }
+    return response.json();
+  },
+
+  /**
+   * Get head-to-head comparison
+   * @param {Array<Object>} evaluations - Array of evaluation results
+   */
+  async compareCreatives(evaluations) {
+    const response = await fetch(`${API_BASE}/api/creative/compare`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ evaluations }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Comparison failed");
+    }
+    return response.json();
+  },
+
+  /**
+   * Get recommendations
+   * @param {Array<Object>} evaluations - Array of evaluation results
+   */
+  async getRecommendations(evaluations) {
+    const response = await fetch(`${API_BASE}/api/creative/recommendations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ evaluations }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Recommendations request failed");
+    }
+    return response.json();
+  }
 };

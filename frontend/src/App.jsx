@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import "./App.css";
-import EvaluationForm from "./components/EvaluationForm";
+import WizardChat from "./components/WizardChat";
 import FinalReport from "./components/FinalReport";
 import RoleResults from "./components/RoleResults";
 import Sidebar from "./components/Sidebar";
@@ -209,75 +209,7 @@ function App() {
           )}
 
           {!evaluationResult ? (
-            <>
-              {/* Evaluation Form */}
-              <EvaluationForm onSubmit={handleSubmit} isLoading={isLoading} />
-
-              {/* Loading Progress */}
-              {isLoading && (
-                <div className="loading-overlay">
-                  <div className="loading-content expanded">
-                    <div className="loading-header">
-                      <div className="loading-spinner small"></div>
-                      <div>
-                        <h3>Council is Deliberating...</h3>
-                        <p className="progress-text">
-                          {progress.current} of {progress.total} specialists finalized
-                          <span className="elapsed-timer"> · {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')} elapsed</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${(progress.current / progress.total) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    
-                    {currentRoles.length === 0 && (
-                      <div className="waiting-for-roles">
-                        <p>🔄 Initializing specialist roles and building evaluation framework...</p>
-                      </div>
-                    )}
-
-                    <div className="specialist-grid">
-                      {currentRoles.map((role, i) => (
-                        <div key={i} className={`specialist-status-card ${role.status}`}>
-                          <div className="card-header">
-                            <span className="role-name">{role.role_name}</span>
-                            <span className={`status-tag ${role.status}`}>
-                              {role.status === 'processing' ? '⚡ Working' : 
-                               role.status === 'complete' ? '✓ Done' : '⏳ Queued'}
-                            </span>
-                          </div>
-                          {role.status === 'complete' ? (
-                            <div className="card-result">
-                              <span className={`verdict ${role.result.toLowerCase()}`}>{role.result}</span>
-                              <span className="score">Score: {role.score}/10</span>
-                              <span className="confidence">({Math.round(role.confidence * 100)}% conf.)</span>
-                            </div>
-                          ) : role.status === 'processing' ? (
-                            <div className="thinking-indicator">
-                              <div className="thinking-dots">
-                                <span></span><span></span><span></span>
-                              </div>
-                            </div>
-                          ) : null}
-                          <p className="status-note">{role.justification}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <p className="warning-text">
-                      ⚡ Specialist roles evaluate in parallel. This typically takes 30-90 seconds depending on LLM response times.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </>
+            <WizardChat />
           ) : (
             <>
               {/* Results View */}
