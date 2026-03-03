@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api } from "../api";
 import "./WizardChat.css";
 import FinalReport from "./FinalReport";
@@ -335,7 +336,7 @@ export default function WizardChat({ onEvaluationsComplete }) {
                   
                   {msg.type === "markdown" && (
                     <div className="markdown-content">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                     </div>
                   )}
                   
@@ -365,14 +366,23 @@ export default function WizardChat({ onEvaluationsComplete }) {
                   )}
     
                   {msg.type === "evaluation_results" && msg.extra?.results && (
-                     <div className="evaluation-cards-carousel">
+                     <div className="evaluation-results-stack">
                         {msg.extra.results.map((r, i) => (
-                          <div key={i} className="eval-summary-card">
-                            <h4>{r.platform}</h4>
-                            <div className={`score-badge ${r.result.hard_gate_failed ? 'fail' : 'pass'}`}>
-                               FEI Score: {r.result.final_effectiveness_index}
+                          <div key={i} className="eval-platform-detailed">
+                            <h3 className="platform-title">Platform: {r.platform}</h3>
+                            
+                            <FinalReport 
+                              report={r.result.final_report}
+                              fei={r.result.final_effectiveness_index}
+                              hardGateFailed={r.result.hard_gate_failed}
+                              failedRole={r.result.failed_hard_gate_role}
+                            />
+                            
+                            <div className="role-results-wrapper">
+                              <h4>LLM Council Deliberation</h4>
+                              <p className="deliberation-subtext">See the exact reasoning and layer scores from the 8 specialist AI models.</p>
+                              <RoleResults roleEvaluations={r.result.role_evaluations} />
                             </div>
-                            <p>{r.result.final_report?.executive_verdict}</p>
                           </div>
                         ))}
                      </div>

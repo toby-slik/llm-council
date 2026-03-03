@@ -212,31 +212,49 @@
   color: var(--text-primary);
 }
 
-.evaluation-cards-carousel {
-  display: flex;
-  gap: 16px;
-  margin-top: 16px;
-  overflow-x: auto;
-  padding-bottom: 12px;
-  scrollbar-width: thin;
-}
-
-.eval-summary-card {
-  flex: 0 0 280px;
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 20px;
+.evaluation-results-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  gap: 32px;
+  margin-top: 24px;
 }
 
-.eval-summary-card h4 {
-  margin: 0;
+.eval-platform-detailed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.platform-title {
+  margin: 0 0 16px 0;
+  font-size: 20px;
   color: var(--accent-primary);
-  font-size: 16px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.role-results-wrapper {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.role-results-wrapper h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.deliberation-subtext {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 0;
+  margin-bottom: 16px;
 }
 
 .score-badge {
