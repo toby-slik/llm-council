@@ -573,6 +573,8 @@ async def analyze_context_multimodal(
         
         Determine what information is clearly present or can be confidently inferred from the creative itself, and what critical information is missing.
         
+        CRITICAL: If you have high confidence in all extracted fields and don't genuinely need any more information to evaluate the creative, output an empty list [] for both missing_information and clarifying_questions. DO NOT ask questions just for the sake of it!
+        
         Provide your response as a JSON object EXACTLY matching this structure:
         {
             "extracted_context": {
@@ -589,8 +591,8 @@ async def analyze_context_multimodal(
                     "decision_involvement": "..."
                 }
             },
-            "missing_information": ["List of missing critical context"],
-            "clarifying_questions": ["Conversational question 1 to ask the user to fill the gaps", "Question 2..."]
+            "missing_information": ["List of missing critical context", "Or empty [] if none"],
+            "clarifying_questions": ["Conversational question 1 to ask the user to fill the gaps", "Or empty [] if none"]
         }
         
         Ensure your output is strictly valid JSON format. Do not use markdown blocks like ```json.

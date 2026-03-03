@@ -117,7 +117,16 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail?.message || "Evaluation failed");
+      let errMsg = errorData.detail?.message || "Evaluation failed";
+      if (errorData.detail?.missing_fields?.length) errMsg += ` - Missing: ${errorData.detail.missing_fields.join(", ")}`;
+      if (errorData.detail?.incomplete_fields?.length) errMsg += ` - Incomplete: ${errorData.detail.incomplete_fields.join(", ")}`;
+      
+      // Also handle default pydantic validation errors (array of errors inside detail)
+      if (Array.isArray(errorData.detail)) {
+         errMsg = errorData.detail.map(e => `${e.loc?.join(".")}: ${e.msg}`).join(" | ");
+      }
+      
+      throw new Error(errMsg);
     }
     return response.json();
   },

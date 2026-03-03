@@ -27,11 +27,8 @@ export default function WizardChat({ onEvaluationsComplete }) {
   const [qaPairs, setQaPairs] = useState([]);
   const [finalContext, setFinalContext] = useState(null);
   
-  // Platform creatives collection
-  const [platformsCount, setPlatformsCount] = useState(0);
-  const [platformNames, setPlatformNames] = useState([]);
-  const [currentPlatformIndex, setCurrentPlatformIndex] = useState(0);
-  const [creativesByPlatform, setCreativesByPlatform] = useState({}); // { "TikTok": [File, File], "Meta": [File] }
+  // File collection
+  const [initialFiles, setInitialFiles] = useState([]);
   
   // Evaluations state
   const [evaluations, setEvaluations] = useState([]);
@@ -41,11 +38,11 @@ export default function WizardChat({ onEvaluationsComplete }) {
   }, [messages, isLoading]);
 
   const addBotMessage = (content, type = "text", extra = null) => {
-    setMessages(prev => [...prev, { id: Date.now(), role: "bot", content, type, extra }]);
+    setMessages(prev => [...prev, { id: Date.now() + Math.random().toString(36).substr(2, 9), role: "bot", content, type, extra }]);
   };
 
   const addUserMessage = (content, type = "text", extra = null) => {
-    setMessages(prev => [...prev, { id: Date.now(), role: "user", content, type, extra }]);
+    setMessages(prev => [...prev, { id: Date.now() + Math.random().toString(36).substr(2, 9), role: "user", content, type, extra }]);
   };
 
   // ----- Step 1: Initial Upload -----
@@ -53,6 +50,7 @@ export default function WizardChat({ onEvaluationsComplete }) {
     const files = e.target.files ? Array.from(e.target.files) : Array.from(e.dataTransfer.files);
     if (!files || !files.length) return;
     
+    setInitialFiles(files);
     addUserMessage(`Uploaded ${files.length} asset(s)`, "text");
     setIsLoading(true);
     setIsDragging(false);
@@ -74,7 +72,7 @@ export default function WizardChat({ onEvaluationsComplete }) {
         addBotMessage("I extracted some initial context, but there are a few gaps I need to fill before we can confidently evaluate the creative. " + result.clarifying_questions[0]);
       } else {
         // No gaps
-        proceedToPlatforms(result.extracted_context);
+        proceedToPlatformInput(result.extracted_context);
       }
     } catch (err) {
       setMessages(prev => prev.filter(m => m.type !== "loading"));
@@ -126,7 +124,7 @@ export default function WizardChat({ onEvaluationsComplete }) {
         setMessages(prev => prev.filter(m => m.type !== "loading"));
         
         if (finalCtx.error) throw new Error(finalCtx.error);
-        proceedToPlatforms(finalCtx);
+        proceedToPlatformInput(finalCtx);
       } catch (err) {
         setMessages(prev => prev.filter(m => m.type !== "loading"));
         addBotMessage(`Error synthesizing brief: ${err.message}`, "error");
@@ -136,51 +134,19 @@ export default function WizardChat({ onEvaluationsComplete }) {
     }
   };
 
-  const proceedToPlatforms = (fullContext) => {
+  const proceedToPlatformInput = (fullContext) => {
     setFinalContext(fullContext);
-    setStep("GET_PLATFORMS");
-    addBotMessage("Awesome. Our Contextual Baseline is locked. How many different creatives/platforms are we comparing? (e.g. '2 - Meta and TikTok')");
+    setStep("GET_PLATFORM");
+    addBotMessage("Awesome. Our Contextual Baseline is locked. What platform(s) is this creative intended to run on? (e.g. Meta, TikTok, YouTube)");
   };
 
   // ----- Step 3: Extract Platforms -----
-  const handleExtractPlatforms = async (text) => {
+  const handlePlatformSubmit = async (text) => {
     addUserMessage(text);
-    // Simple naive parsing or we could use LLM. Let's do a simple split for now, 
-    // or assume they say "TikTok and Meta"
-    const words = text.split(/[\s,]+/);
-    const platforms = [];
-    words.forEach(w => {
-      if (w.toLowerCase() !== "and" && w.toLowerCase() !== "for" && isNaN(w) && w.length > 2) {
-         // rough heuristic to extract names if LLM isn't used
-         platforms.push(w);
-      }
-    });
+    const platform = text || "Generic Platform";
     
-    // If we couldn't parse platform names, fallback
-    const names = platforms.length ? platforms : ["Asset 1"];
-    setPlatformNames(names);
-    setStep("UPLOAD_CREATIVES");
-    setCurrentPlatformIndex(0);
-    
-    setTimeout(() => addBotMessage(`Great. Please upload the creative ad(s) for ${names[0]}.`, "upload_platform", { platform: names[0] }), 500);
-  };
-
-  const handlePlatformUpload = async (e, platformName) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    
-    addUserMessage(`Uploaded ${files.length} creative(s) for ${platformName}`);
-    
-    setCreativesByPlatform(prev => ({ ...prev, [platformName]: files }));
-    
-    if (currentPlatformIndex + 1 < platformNames.length) {
-      const nextIdx = currentPlatformIndex + 1;
-      setCurrentPlatformIndex(nextIdx);
-      setTimeout(() => addBotMessage(`Now, please upload the creative ad(s) for ${platformNames[nextIdx]}.`, "upload_platform", { platform: platformNames[nextIdx] }), 500);
-    } else {
-      // Begin evaluation
-      startEvaluations({ ...creativesByPlatform, [platformName]: files });
-    }
+    // Begin evaluation using the files uploaded in step 1
+    startEvaluations({ [platform]: initialFiles });
   };
 
   // ----- Step 4: Run Evaluations -----
@@ -207,7 +173,7 @@ export default function WizardChat({ onEvaluationsComplete }) {
           category: finalContext.category || "Unknown Category",
           campaign_objective: finalContext.campaign_objective || "Mixed",
           primary_channels: [platform],
-          target_audience: finalContext.target_audience || "General Audience",
+          target_audience: finalContext.target_audience || "General Audience, reaching out to everyday people looking for a better solution in their daily lives to ensure wide market reach and adoption over time.",
           brand_status: finalContext.brand_status || "Emerging / Growth Brand",
           market_context: finalContext.market_context || {
             market_maturity: "Mature",
@@ -216,7 +182,8 @@ export default function WizardChat({ onEvaluationsComplete }) {
             decision_involvement: "Medium"
           },
           creative: {
-            description: `Creative for ${platform}`,
+            description: `Visual reference creative ad for ${platform}. Please execute full multimodal evaluation.`,
+            file_path: file.name,
             file_name: file.name,
             file_content: fileB64.split(',')[1],
             file_type: file.type
@@ -313,8 +280,8 @@ export default function WizardChat({ onEvaluationsComplete }) {
     
     if (step === "CLARIFY_GAPS") {
       handleClarifyAnswer(text);
-    } else if (step === "GET_PLATFORMS") {
-      handleExtractPlatforms(text);
+    } else if (step === "GET_PLATFORM") {
+      handlePlatformSubmit(text);
     } else if (step === "POST_EVAL" || step === "ASK_RECOMMENDATIONS") {
       handlePostEvalResponse(text);
     } else {
