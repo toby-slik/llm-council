@@ -520,13 +520,13 @@ async def analyze_context_multimodal(
     and identify gaps (Brand, Category, Objectives, Audience, Market Context).
     """
     try:
-        from .config import GOOGLE_API_KEY
-        import google.generativeai as genai
+        from google import genai
+        from .config import GOOGLE_API_KEY, GEMINI_MODEL
         
         if not GOOGLE_API_KEY:
             return {"error": "API Key Missing: Please add GOOGLE_API_KEY to your .env file."}
             
-        genai.configure(api_key=GOOGLE_API_KEY)
+        client = genai.Client(api_key=GOOGLE_API_KEY)
         
         uploaded_gemini_files = []
         
@@ -538,22 +538,25 @@ async def analyze_context_multimodal(
                 shutil.copyfileobj(file.file, temp_file)
                 temp_path = temp_file.name
                 
-            # Upload to Gemini
-            gemini_file = genai.upload_file(path=temp_path, display_name=file.filename)
-            
-            # Wait for processing if it's a video
-            while gemini_file.state.name == "PROCESSING":
-                time.sleep(1)
-                gemini_file = genai.get_file(gemini_file.name)
+            try:
+                # Upload to Gemini using the new SDK
+                gemini_file = client.files.upload(
+                    file=temp_path,
+                    config={'display_name': file.filename}
+                )
                 
-            uploaded_gemini_files.append(gemini_file)
+                # Wait for processing if it's a video/large file
+                while gemini_file.state == "PROCESSING":
+                    time.sleep(1)
+                    gemini_file = client.files.get(name=gemini_file.name)
+                    
+                uploaded_gemini_files.append(gemini_file)
+            finally:
+                # Clean up local temp file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
             
-            # Clean up local temp file
-            os.remove(temp_path)
-            
-        # Call Gemini to extract context
-        model = genai.GenerativeModel('gemini-3.1-pro-preview')
-        
+        # Define the prompt for extraction
         prompt = """
         You are an elite Creative Effectiveness Strategist.
         Review these creative assets (videos, images, or documents).
@@ -598,13 +601,23 @@ async def analyze_context_multimodal(
         Ensure your output is strictly valid JSON format. Do not use markdown blocks like ```json.
         """
         
-        result = model.generate_content([prompt] + uploaded_gemini_files)
+        from .config import GEMINI_FLASH_MODEL
+        
+        # Call Gemini to extract context
+        # Provide prompt and all uploaded files
+        response = client.models.generate_content(
+            model=GEMINI_FLASH_MODEL,
+            contents=[prompt] + uploaded_gemini_files
+        )
         
         # Clean up Gemini files
         for f in uploaded_gemini_files:
-            genai.delete_file(f.name)
+            try:
+                client.files.delete(name=f.name)
+            except Exception as e:
+                print(f"Failed to delete Gemini file {f.name}: {e}")
             
-        content = result.text.strip()
+        content = response.text.strip()
         if content.startswith("```json"):
             content = content[7:-3]
         elif content.startswith("```"):

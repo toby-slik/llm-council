@@ -463,15 +463,19 @@ async def run_creative_evaluation(
             # We use the same callback for status updates
             on_role_complete(role.name, None, status="queued")
     
+    # Added Semaphore to limit concurrency and avoid 429/503 rate limits on Gemini
+    sem = asyncio.Semaphore(2)
+    
     async def evaluate_role(role: RoleDefinition) -> RoleEvaluation:
-        if on_role_complete:
-            on_role_complete(role.name, None, status="processing")
-        
-        result = await evaluate_with_role(role, input_data, contextual_baseline, query_func, on_role_complete=on_role_complete)
-        
-        if on_role_complete:
-            on_role_complete(role.name, result, status="complete")
-        return result
+        async with sem:
+            if on_role_complete:
+                on_role_complete(role.name, None, status="processing")
+            
+            result = await evaluate_with_role(role, input_data, contextual_baseline, query_func, on_role_complete=on_role_complete)
+            
+            if on_role_complete:
+                on_role_complete(role.name, result, status="complete")
+            return result
     
     role_evaluations = await asyncio.gather(*[evaluate_role(r) for r in roles])
     role_evaluations = list(role_evaluations)

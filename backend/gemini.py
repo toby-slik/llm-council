@@ -71,45 +71,59 @@ async def query_gemini(
             "parts": [{"text": system_instruction}]
         }
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                json=request_body,
-                timeout=timeout,
-            )
-            
-            if response.status_code == 429:
-                raise Exception(f"Gemini API Error 429: Rate limit exceeded. {response.text[:200]}")
-            
-            if response.status_code != 200:
-                print(f"Gemini API error: {response.status_code} - {response.text[:200]}")
-                return None
-            
-            data = response.json()
-            
-            # Extract text from response
-            candidates = data.get("candidates", [])
-            if not candidates:
-                return None
-            
-            content = candidates[0].get("content", {})
-            parts = content.get("parts", [])
-            if not parts:
-                return None
-            
-            text = parts[0].get("text", "")
-            
-            return {"content": text}
-            
-    except httpx.TimeoutException:
-        print(f"Gemini API timeout after {timeout}s")
-        return None
-    except Exception as e:
-        if "429" in str(e):
-            raise e
-        print(f"Gemini API error: {e}")
-        return None
+    import asyncio
+    
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url,
+                    json=request_body,
+                    timeout=timeout,
+                )
+                
+                if response.status_code in (429, 503):
+                    if attempt < 2:
+                        print(f"Gemini API {response.status_code} received. Retrying in {(attempt + 1) * 3}s...")
+                        await asyncio.sleep((attempt + 1) * 3)
+                        continue
+                    raise Exception(f"Gemini API Error {response.status_code}: Rate limit exceeded. {response.text[:200]}")
+                
+                if response.status_code != 200:
+                    print(f"Gemini API error: {response.status_code} - {response.text[:200]}")
+                    return None
+                
+                data = response.json()
+                
+                # Extract text from response
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    return None
+                
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if not parts:
+                    return None
+                
+                text = parts[0].get("text", "")
+                
+                return {"content": text}
+                
+        except httpx.TimeoutException:
+            if attempt < 2:
+                print(f"Gemini API timeout after {timeout}s. Retrying...")
+                await asyncio.sleep(2)
+                continue
+            print(f"Gemini API timeout after {timeout}s")
+            return None
+        except Exception as e:
+            if "429" in str(e) or "503" in str(e):
+                if attempt < 2:
+                    await asyncio.sleep((attempt + 1) * 3)
+                    continue
+                raise e
+            print(f"Gemini API error: {e}")
+            return None
 
 
 async def query_gemini_parallel(

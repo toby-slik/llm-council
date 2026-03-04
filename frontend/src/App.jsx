@@ -11,6 +11,7 @@ function App() {
   const [evaluations, setEvaluations] = useState([]);
   const [currentEvaluationId, setCurrentEvaluationId] = useState(null);
   const [currentEvaluation, setCurrentEvaluation] = useState(null);
+  const [newChatKey, setNewChatKey] = useState(Date.now());
 
   const [backendInfo, setBackendInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +56,48 @@ function App() {
       }
     } catch (e) {
       console.error("Failed to load evaluations:", e);
+      // If parsing fails, the storage might be corrupted or we hit quota during a write
+      setEvaluations([]);
     }
+  };
+
+  const clearHistory = () => {
+    if (
+      window.confirm(
+        "Are you sure you want to clear ALL evaluation history? This cannot be undone.",
+      )
+    ) {
+      localStorage.removeItem("creative_evaluations");
+      setEvaluations([]);
+      handleNewEvaluation();
+    }
+  };
+
+  const addEvaluationToSidebar = (formData, result) => {
+    const evaluation = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      created_at: new Date().toISOString(),
+      title: `${formData.brand_name} - ${formData.category}`,
+      formData,
+      result,
+    };
+
+    const updated = [evaluation, ...evaluations];
+    setEvaluations(updated);
+    try {
+      localStorage.setItem("creative_evaluations", JSON.stringify(updated));
+    } catch (e) {
+      if (
+        e.name === "QuotaExceededError" ||
+        e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+      ) {
+        setError(
+          "Local storage is full. Please clear some previous evaluations to save new ones.",
+        );
+      }
+      console.error("Failed to save to local storage:", e);
+    }
+    return evaluation;
   };
 
   const saveEvaluation = (formData, result) => {
@@ -98,7 +140,9 @@ function App() {
 
           case "role_update":
             setCurrentRoles((prev) => {
-              const idx = prev.findIndex((r) => r.role_name === event.role.role_name);
+              const idx = prev.findIndex(
+                (r) => r.role_name === event.role.role_name,
+              );
               if (idx >= 0) {
                 const updated = [...prev];
                 updated[idx] = { ...updated[idx], ...event.role };
@@ -111,7 +155,9 @@ function App() {
           case "role_complete":
             setProgress((prev) => ({ ...prev, current: event.progress }));
             setCurrentRoles((prev) => {
-              const idx = prev.findIndex((r) => r.role_name === event.role.role_name);
+              const idx = prev.findIndex(
+                (r) => r.role_name === event.role.role_name,
+              );
               if (idx >= 0) {
                 const updated = [...prev];
                 updated[idx] = { ...updated[idx], ...event.role };
@@ -159,6 +205,7 @@ function App() {
     setEvaluationResult(null);
     setError(null);
     setProgress({ current: 0, total: 8 });
+    setNewChatKey(Date.now());
   };
 
   const handleSelectEvaluation = (id) => {
@@ -190,6 +237,7 @@ function App() {
         onSelectConversation={handleSelectEvaluation}
         onNewConversation={handleNewEvaluation}
         onDeleteConversation={deleteEvaluation}
+        onClearHistory={clearHistory}
       />
 
       <div className="app-content">
@@ -209,7 +257,10 @@ function App() {
           )}
 
           {!evaluationResult ? (
-            <WizardChat />
+            <WizardChat
+              key={currentEvaluationId || newChatKey}
+              onSaveEvaluation={addEvaluationToSidebar}
+            />
           ) : (
             <>
               {/* Results View */}

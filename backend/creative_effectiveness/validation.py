@@ -171,11 +171,13 @@ def validate_input(data: Dict[str, Any]) -> ValidationResult:
                 still_missing.append(field)
         missing = still_missing
         
-        # Also be softer on market context
+        # Also be softer on market context and target audience
         still_incomplete = []
         for field in incomplete:
             if "market_context" in field:
                 warnings.append(f"Market detail '{field}' missing. AI will use defaults or infer from document.")
+            elif field == "target_audience":
+                warnings.append(f"Target audience description is brief. AI will infer necessary insights.")
             else:
                 still_incomplete.append(field)
         incomplete = still_incomplete

@@ -6,6 +6,7 @@ export default function Sidebar({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onClearHistory,
 }) {
   return (
     <div className="sidebar">
@@ -23,8 +24,9 @@ export default function Sidebar({
           conversations.map((conv) => (
             <div
               key={conv.id}
-              className={`conversation-item ${conv.id === currentConversationId ? "active" : ""
-                }`}
+              className={`conversation-item ${
+                conv.id === currentConversationId ? "active" : ""
+              }`}
               onClick={() => onSelectConversation(conv.id)}
             >
               <div className="conversation-title">
@@ -39,7 +41,7 @@ export default function Sidebar({
                   e.stopPropagation();
                   if (
                     window.confirm(
-                      "Are you sure you want to delete this evaluation?"
+                      "Are you sure you want to delete this evaluation?",
                     )
                   ) {
                     onDeleteConversation(conv.id);
@@ -53,6 +55,14 @@ export default function Sidebar({
           ))
         )}
       </div>
+
+      {conversations.length > 0 && (
+        <div className="sidebar-footer">
+          <button className="clear-history-btn" onClick={onClearHistory}>
+            Clear History
+          </button>
+        </div>
+      )}
     </div>
   );
 }
