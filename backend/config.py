@@ -22,8 +22,14 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Primary evaluation model (used for all 8 roles when Google API available)
 # Falls back to OpenRouter free models if Google API not configured
-GEMINI_MODEL = "gemini-3-flash-preview"  # High reasoning capability
+GEMINI_MODEL = "gemini-3.1-pro-preview"  # High reasoning capability
 GEMINI_FLASH_MODEL = "gemini-3-flash-preview"  # Fast and reliable fallback/multimodal
+
+# Model mapping for UI
+GEMINI_MODELS = {
+    "indepth": GEMINI_MODEL,
+    "fast": GEMINI_FLASH_MODEL
+}
 
 # Fallback free models via OpenRouter
 OPENROUTER_MODELS = [

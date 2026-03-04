@@ -9,6 +9,7 @@ import RoleResults from "./RoleResults";
 export default function WizardChat({
   onEvaluationsComplete,
   onSaveEvaluation,
+  modelPreference = "indepth",
 }) {
   const [messages, setMessages] = useState([
     {
@@ -232,6 +233,7 @@ export default function WizardChat({
             file_content: fileB64.split(",")[1],
             file_type: file.type,
           },
+          model_preference: modelPreference,
         };
 
         const result = await api.runEvaluation(evalInput);

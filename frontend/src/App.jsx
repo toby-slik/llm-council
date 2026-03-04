@@ -12,6 +12,7 @@ function App() {
   const [currentEvaluationId, setCurrentEvaluationId] = useState(null);
   const [currentEvaluation, setCurrentEvaluation] = useState(null);
   const [newChatKey, setNewChatKey] = useState(Date.now());
+  const [modelPreference, setModelPreference] = useState("indepth");
 
   const [backendInfo, setBackendInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -242,10 +243,29 @@ function App() {
 
       <div className="app-content">
         <header className="app-header">
-          <h1>SLIK Creative Effectiveness</h1>
-          {backendInfo && (
-            <span className="backend-info">{backendInfo.llm_backend}</span>
-          )}
+          <div className="header-left">
+            <h1>SLIK Creative Effectiveness</h1>
+          </div>
+          <div className="header-right">
+            <div className="model-selector-container">
+              <label htmlFor="model-select">Mode:</label>
+              <select
+                id="model-select"
+                value={modelPreference}
+                onChange={(e) => setModelPreference(e.target.value)}
+                className="model-select-combobox"
+              >
+                <option value="indepth">In-depth Analysis (Pro)</option>
+                <option value="fast">Fast Evaluation (Flash)</option>
+              </select>
+            </div>
+            {backendInfo && (
+              <span
+                className="backend-status-dot"
+                title={backendInfo.llm_backend}
+              ></span>
+            )}
+          </div>
         </header>
 
         <main className="app-main">
@@ -260,6 +280,7 @@ function App() {
             <WizardChat
               key={currentEvaluationId || newChatKey}
               onSaveEvaluation={addEvaluationToSidebar}
+              modelPreference={modelPreference}
             />
           ) : (
             <>

@@ -65,6 +65,7 @@ class EvaluateRequest(BaseModel):
     competitive_context: Optional[Dict[str, Any]] = None
     local_factors: Optional[Dict[str, Any]] = None
     existing_research: Optional[str] = None
+    model_preference: Optional[str] = "indepth"  # "indepth" or "fast"
 
 
 # ============================================================================
@@ -204,7 +205,16 @@ async def evaluate_creative(request: EvaluateRequest):
     
     # Run evaluation
     try:
-        result = await run_creative_evaluation(eval_input, query_llm)
+        from .config import GEMINI_MODELS
+        
+        pref = data.get("model_preference", "indepth")
+        model_name = GEMINI_MODELS.get(pref, GEMINI_MODELS["indepth"])
+        
+        # Override query_llm with preferred model
+        async def query_with_model(msgs, timeout=None):
+            return await query_llm(msgs, model=model_name, timeout=timeout)
+            
+        result = await run_creative_evaluation(eval_input, query_with_model)
         return result.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
@@ -330,10 +340,17 @@ async def evaluate_creative_stream(request: EvaluateRequest):
                 }
             queue.put_nowait(event)
 
+        from .config import GEMINI_MODELS
+        pref = data.get("model_preference", "indepth")
+        model_name = GEMINI_MODELS.get(pref, GEMINI_MODELS["indepth"])
+        
+        async def query_with_model(msgs, timeout=None):
+            return await query_llm(msgs, model=model_name, timeout=timeout)
+
         # Start evaluation in a background task
         eval_task = asyncio.create_task(run_creative_evaluation(
             eval_input, 
-            query_llm,
+            query_with_model,
             on_role_complete=on_role_complete
         ))
 
