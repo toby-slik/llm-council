@@ -104,3 +104,26 @@
   background-color: rgba(255, 0, 0, 0.1);
   color: #ff4444;
 }
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.clear-history-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.clear-history-btn:hover {
+  background: #fff;
+  color: #ff4444;
+  border-color: #ff4444;
+}

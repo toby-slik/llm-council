@@ -65,6 +65,7 @@ class EvaluateRequest(BaseModel):
     competitive_context: Optional[Dict[str, Any]] = None
     local_factors: Optional[Dict[str, Any]] = None
     existing_research: Optional[str] = None
+    model_preference: Optional[str] = "indepth"  # "indepth" or "fast"
 
 
 # ============================================================================
@@ -204,7 +205,16 @@ async def evaluate_creative(request: EvaluateRequest):
     
     # Run evaluation
     try:
-        result = await run_creative_evaluation(eval_input, query_llm)
+        from .config import GEMINI_MODELS
+        
+        pref = data.get("model_preference", "indepth")
+        model_name = GEMINI_MODELS.get(pref, GEMINI_MODELS["indepth"])
+        
+        # Override query_llm with preferred model
+        async def query_with_model(msgs, timeout=None):
+            return await query_llm(msgs, model=model_name, timeout=timeout)
+            
+        result = await run_creative_evaluation(eval_input, query_with_model)
         return result.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
@@ -330,10 +340,17 @@ async def evaluate_creative_stream(request: EvaluateRequest):
                 }
             queue.put_nowait(event)
 
+        from .config import GEMINI_MODELS
+        pref = data.get("model_preference", "indepth")
+        model_name = GEMINI_MODELS.get(pref, GEMINI_MODELS["indepth"])
+        
+        async def query_with_model(msgs, timeout=None):
+            return await query_llm(msgs, model=model_name, timeout=timeout)
+
         # Start evaluation in a background task
         eval_task = asyncio.create_task(run_creative_evaluation(
             eval_input, 
-            query_llm,
+            query_with_model,
             on_role_complete=on_role_complete
         ))
 
@@ -507,6 +524,293 @@ async def extract_from_document(request: ExtractRequest):
         return {"error": f"Extraction failed: {str(e)}"}
 
 
+import tempfile
+import time
+import shutil
+
+@app.post("/api/creative/analyze-context")
+async def analyze_context_multimodal(
+    files: List[UploadFile] = File(...)
+):
+    """
+    Analyze uploaded creatives (video, image) or briefs to extract context 
+    and identify gaps (Brand, Category, Objectives, Audience, Market Context).
+    """
+    try:
+        from google import genai
+        from .config import GOOGLE_API_KEY, GEMINI_MODEL
+        
+        if not GOOGLE_API_KEY:
+            return {"error": "API Key Missing: Please add GOOGLE_API_KEY to your .env file."}
+            
+        client = genai.Client(api_key=GOOGLE_API_KEY)
+        
+        uploaded_gemini_files = []
+        
+        # Save files temporarily and upload to Gemini
+        for file in files:
+            # Create a temp file with the same extension
+            ext = os.path.splitext(file.filename)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
+                shutil.copyfileobj(file.file, temp_file)
+                temp_path = temp_file.name
+                
+            try:
+                # Upload to Gemini using the new SDK
+                gemini_file = client.files.upload(
+                    file=temp_path,
+                    config={'display_name': file.filename}
+                )
+                
+                # Wait for processing if it's a video/large file
+                while gemini_file.state == "PROCESSING":
+                    time.sleep(1)
+                    gemini_file = client.files.get(name=gemini_file.name)
+                    
+                uploaded_gemini_files.append(gemini_file)
+            finally:
+                # Clean up local temp file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            
+        # Define the prompt for extraction
+        prompt = """
+        You are an elite Creative Effectiveness Strategist.
+        Review these creative assets (videos, images, or documents).
+        
+        Your goal is to extract the Contextual Baseline from the creative assets. Focus heavily on visual elements, brand logos, product types, and tone.
+        
+        1. Brand Name
+        2. Category (e.g. "Automotive", "CPG", "Tech")
+        3. Campaign Objective ("Long-term brand growth", "Short-term activation", "Mixed")
+        4. Target Audience (Detailed description)
+        5. Brand Status ("Market Leader", "Strong Challenger", "Emerging / Growth Brand", "New or Low-Awareness Brand")
+        6. Market Context (Select from options below for each):
+             - market_maturity: "Mature", "Growing", "Emerging"
+             - category_clutter: "Low", "Medium", "High"
+             - purchase_frequency: "High", "Medium", "Low"
+             - decision_involvement: "Low", "Medium", "High"
+        
+        Determine what information is clearly present or can be confidently inferred from the creative itself, and what critical information is missing.
+        
+        CRITICAL: If you have high confidence in all extracted fields and don't genuinely need any more information to evaluate the creative, output an empty list [] for both missing_information and clarifying_questions. DO NOT ask questions just for the sake of it!
+        
+        Provide your response as a JSON object EXACTLY matching this structure:
+        {
+            "extracted_context": {
+                // Fill in the fields you found or inferred. Leave null if absolutely unknown.
+                "brand_name": "...",
+                "category": "...",
+                "campaign_objective": "...",
+                "target_audience": "...",
+                "brand_status": "...",
+                "market_context": {
+                    "market_maturity": "...",
+                    "category_clutter": "...",
+                    "purchase_frequency": "...",
+                    "decision_involvement": "..."
+                }
+            },
+            "missing_information": ["List of missing critical context", "Or empty [] if none"],
+            "clarifying_questions": ["Conversational question 1 to ask the user to fill the gaps", "Or empty [] if none"]
+        }
+        
+        Ensure your output is strictly valid JSON format. Do not use markdown blocks like ```json.
+        """
+        
+        from .config import GEMINI_FLASH_MODEL
+        
+        # Call Gemini to extract context
+        # Provide prompt and all uploaded files
+        response = client.models.generate_content(
+            model=GEMINI_FLASH_MODEL,
+            contents=[prompt] + uploaded_gemini_files
+        )
+        
+        # Clean up Gemini files
+        for f in uploaded_gemini_files:
+            try:
+                client.files.delete(name=f.name)
+            except Exception as e:
+                print(f"Failed to delete Gemini file {f.name}: {e}")
+            
+        content = response.text.strip()
+        if content.startswith("```json"):
+            content = content[7:-3]
+        elif content.startswith("```"):
+            content = content[3:-3]
+            
+        import json
+        try:
+            parsed_json = json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback if invalid JSON
+            parsed_json = {"error": "Failed to parse LLM Output", "raw_output": content}
+            
+        return parsed_json
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Analysis failed: {str(e)}"}
+
+
+class ClarifyRequest(BaseModel):
+    extracted_context: Dict[str, Any]
+    qa_pairs: List[Dict[str, str]]
+
+
+@app.post("/api/creative/clarify-brief")
+async def clarify_brief(request: ClarifyRequest):
+    """
+    Takes the partially extracted context and user Q&A, and outputs 
+    the final structured Contextual Baseline ready for evaluation.
+    """
+    try:
+        from .llm import query_llm
+        
+        prompt = f"""
+        You are finalizing the Contextual Baseline for a creative evaluation.
+        
+        Original Extracted Context (may have missing fields):
+        {json.dumps(request.extracted_context, indent=2)}
+        
+        User Q&A covering the missing gaps:
+        {json.dumps(request.qa_pairs, indent=2)}
+        
+        Please synthesize this into a complete Contextual Baseline. Use the user's answers to fill in any null or missing values from the original context.
+        
+        Provide your response as a JSON object EXACTLY matching this structure:
+        {{
+            "brand_name": "...",
+            "category": "...",
+            "campaign_objective": "...",
+            "target_audience": "...",
+            "brand_status": "...",
+            "market_context": {{
+                "market_maturity": "...",
+                "category_clutter": "...",
+                "purchase_frequency": "...",
+                "decision_involvement": "..."
+            }}
+        }}
+        
+        Ensure your output is strictly valid JSON format. Do not use markdown blocks like ```json.
+        """
+        
+        response = await query_llm([
+            {"role": "system", "content": "You are a data synthesis specialist. Output only valid JSON."},
+            {"role": "user", "content": prompt}
+        ])
+        
+        if not response:
+            return {"error": "LLM synthesis failed. Please try again."}
+            
+        content = response["content"].strip()
+        if content.startswith("```json"):
+            content = content[7:-3]
+        elif content.startswith("```"):
+            content = content[3:-3]
+            
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {"error": "Failed to parse LLM Output", "raw_output": content}
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Clarification failed: {str(e)}"}
+
+
+class CompareRequest(BaseModel):
+    evaluations: List[Dict[str, Any]]
+    criteria: Optional[List[str]] = None
+
+@app.post("/api/creative/compare")
+async def compare_creatives(request: CompareRequest):
+    """
+    Generates a head-to-head comparison table between multiple creative evaluations.
+    """
+    try:
+        from .llm import query_llm
+        
+        prompt = f"""
+        You are an elite Creative Effectiveness Strategist.
+        You have been provided with the evaluation results of multiple creative assets belonging to the same campaign.
+        
+        EVALUATIONS:
+        {json.dumps(request.evaluations, indent=2)}
+        
+        Your task is to create a head-to-head comparison table assessing the creatives against key effectiveness criteria. 
+        Focus on:
+        - Overall Effectiveness Score (FEI)
+        - Attention Probability
+        - Brand Linkage
+        - Emotional Response
+        - Strategic Fit
+        - Commercial Impact Risk
+        
+        Provide a detailed markdown response containing:
+        1. A brief executive summary (1-2 sentences) of the comparison.
+        2. A markdown table comparing the creatives across all important criteria.
+        3. A confident recommendation identifying the clear winner and why.
+        """
+        
+        response = await query_llm([
+            {"role": "system", "content": "You are an expert effectiveness analyst."},
+            {"role": "user", "content": prompt}
+        ])
+        
+        if not response:
+            return {"error": "LLM comparison failed."}
+            
+        return {"comparison_markdown": response["content"]}
+            
+    except Exception as e:
+        return {"error": f"Comparison failed: {str(e)}"}
+
+
+class RecommendationsRequest(BaseModel):
+    evaluations: List[Dict[str, Any]]
+
+@app.post("/api/creative/recommendations")
+async def get_recommendations(request: RecommendationsRequest):
+    """
+    Generates actionable recommendations to improve the creatives.
+    """
+    try:
+        from .llm import query_llm
+        
+        prompt = f"""
+        You are an elite Creative Effectiveness Strategist.
+        Review the following creative evaluation results.
+        
+        EVALUATIONS:
+        {json.dumps(request.evaluations, indent=2)}
+        
+        Your task is to identify the weakest areas and provide actionable recommendations to make these creatives stronger before they launch. Focus on what can realistically be changed (e.g. earlier branding, clearer CTA, pacing, shorter cuts).
+        
+        Provide a detailed markdown response containing:
+        1. An executive summary (1 sentence) of the overall revision necessity.
+        2. A markdown table mapping "Weakness Identified" -> "Recommended Action" -> "Expected Impact" for each asset.
+        """
+        
+        response = await query_llm([
+            {"role": "system", "content": "You are an expert creative strategist providing actionable feedback."},
+            {"role": "user", "content": prompt}
+        ])
+        
+        if not response:
+            return {"error": "LLM recommendations failed."}
+            
+        return {"recommendations_markdown": response["content"]}
+            
+    except Exception as e:
+        return {"error": f"Recommendations failed: {str(e)}"}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
+

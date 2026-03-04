@@ -67,8 +67,8 @@ async def query_llm(
 async def get_active_backend() -> str:
     """Get the name of the currently active LLM backend."""
     if USE_GEMINI:
-        from .config import GEMINI_MODEL
-        return f"Google Gemini ({GEMINI_MODEL})"
+        from .config import GEMINI_MODELS
+        return f"Google Gemini (Active: {GEMINI_MODELS['indepth']})"
     else:
         from .config import OPENROUTER_MODELS
         return f"OpenRouter ({OPENROUTER_MODELS[0]})"
