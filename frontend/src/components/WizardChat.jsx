@@ -357,8 +357,38 @@ export default function WizardChat({
         }
       } else {
         setStep("DONE");
-        addBotMessage("All done! Let me know if you need anything else.");
+        addBotMessage(
+          "All done! Let me know if you need anything else or have any follow-up questions.",
+        );
       }
+    }
+  };
+
+  const handleGenericChat = async (text) => {
+    addUserMessage(text);
+    setIsLoading(true);
+
+    try {
+      const chatHistory = messages
+        .filter((m) => m.type === "text" || m.type === "markdown")
+        .map((m) => ({ role: m.role, content: m.content }));
+      chatHistory.push({ role: "user", content: text });
+
+      const cleanEvals = evaluations.map((e) => ({
+        platform: e.platform,
+        final_effectiveness_index: e.result?.final_effectiveness_index,
+      }));
+
+      const res = await api.chat({
+        messages: chatHistory,
+        evaluations: cleanEvals,
+      });
+      if (res.error) throw new Error(res.error);
+      addBotMessage(res.reply, "markdown");
+    } catch (err) {
+      addBotMessage(`Error: ${err.message}`, "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -377,14 +407,7 @@ export default function WizardChat({
       handlePostEvalResponse(text);
     } else {
       // Generic chat or DONE state
-      addUserMessage(text);
-      setTimeout(
-        () =>
-          addBotMessage(
-            "The evaluation workflow is complete. Please start a new session for another campaign.",
-          ),
-        500,
-      );
+      handleGenericChat(text);
     }
   };
 

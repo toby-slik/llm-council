@@ -7,7 +7,7 @@ import { upload } from "@vercel/blob/client";
 // Use current origin in production, or localhost:8001 in development
 const API_BASE =
   window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
+  window.location.hostname === "127.0.0.1"
     ? "http://localhost:8001"
     : "";
 
@@ -22,7 +22,6 @@ export const api = {
     }
     return response.json();
   },
-
 
   /**
    * Get evaluation configuration (roles, backend info).
@@ -56,13 +55,13 @@ export const api = {
 
   /**
    * Upload file to Vercel Blob using client-side SDK.
-   * @param {File} file 
+   * @param {File} file
    */
   async uploadToStorage(file) {
     try {
       const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/creative/upload/token', // Route to our Node.js helper
+        access: "public",
+        handleUploadUrl: "/api/creative/upload/token", // Route to our Node.js helper
       });
       return newBlob.url;
     } catch (error) {
@@ -82,7 +81,7 @@ export const api = {
     const body = {
       file_name: fileName,
       file_url: fileUrl || null,
-      file_content: fileContent || null
+      file_content: fileContent || null,
     };
 
     const response = await fetch(`${API_BASE}/api/creative/extract`, {
@@ -96,7 +95,9 @@ export const api = {
         const errorJson = JSON.parse(errorText);
         throw new Error(errorJson.detail || "Extraction failed");
       } catch (e) {
-        throw new Error(`Extraction failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Extraction failed: ${response.status} ${response.statusText}`,
+        );
       }
     }
     return response.json();
@@ -118,14 +119,18 @@ export const api = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       let errMsg = errorData.detail?.message || "Evaluation failed";
-      if (errorData.detail?.missing_fields?.length) errMsg += ` - Missing: ${errorData.detail.missing_fields.join(", ")}`;
-      if (errorData.detail?.incomplete_fields?.length) errMsg += ` - Incomplete: ${errorData.detail.incomplete_fields.join(", ")}`;
-      
+      if (errorData.detail?.missing_fields?.length)
+        errMsg += ` - Missing: ${errorData.detail.missing_fields.join(", ")}`;
+      if (errorData.detail?.incomplete_fields?.length)
+        errMsg += ` - Incomplete: ${errorData.detail.incomplete_fields.join(", ")}`;
+
       // Also handle default pydantic validation errors (array of errors inside detail)
       if (Array.isArray(errorData.detail)) {
-         errMsg = errorData.detail.map(e => `${e.loc?.join(".")}: ${e.msg}`).join(" | ");
+        errMsg = errorData.detail
+          .map((e) => `${e.loc?.join(".")}: ${e.msg}`)
+          .join(" | ");
       }
-      
+
       throw new Error(errMsg);
     }
     return response.json();
@@ -198,7 +203,7 @@ export const api = {
    */
   async analyzeContext(files) {
     const formData = new FormData();
-    files.forEach(file => {
+    files.forEach((file) => {
       formData.append("files", file);
     });
 
@@ -208,7 +213,9 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Analysis failed: ${response.statusText}`);
+      throw new Error(
+        errorData.error || `Analysis failed: ${response.statusText}`,
+      );
     }
     return response.json();
   },
@@ -222,11 +229,14 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/creative/clarify-brief`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ extracted_context: extractedContext, qa_pairs: qaPairs }),
+      body: JSON.stringify({
+        extracted_context: extractedContext,
+        qa_pairs: qaPairs,
+      }),
     });
     if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Clarification failed");
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || "Clarification failed");
     }
     return response.json();
   },
@@ -242,8 +252,8 @@ export const api = {
       body: JSON.stringify({ evaluations }),
     });
     if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Comparison failed");
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || "Comparison failed");
     }
     return response.json();
   },
@@ -259,9 +269,27 @@ export const api = {
       body: JSON.stringify({ evaluations }),
     });
     if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || "Recommendations request failed");
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || "Recommendations request failed");
     }
     return response.json();
-  }
+  },
+
+  /**
+   * Generic chat with the AI about evaluations.
+   * @param {Object} data - { messages: [{role, content}], evaluations: [...] }
+   * @returns {Promise<Object>} - { reply: "..." }
+   */
+  async chat(data) {
+    const response = await fetch(`${API_BASE}/api/creative/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || "Chat request failed");
+    }
+    return response.json();
+  },
 };

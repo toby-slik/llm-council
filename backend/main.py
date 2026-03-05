@@ -810,6 +810,44 @@ async def get_recommendations(request: RecommendationsRequest):
         return {"error": f"Recommendations failed: {str(e)}"}
 
 
+class ChatRequest(BaseModel):
+    messages: List[Dict[str, str]]
+    evaluations: Optional[List[Dict[str, Any]]] = None
+
+@app.post("/api/creative/chat")
+async def chat_with_assistant(request: ChatRequest):
+    """
+    Generic chat endpoint to continue conversation about evaluations.
+    """
+    try:
+        from .llm import query_llm
+        
+        system_prompt = "You are an AI Creative Effectiveness Strategist. The user is asking follow-up questions about their creative evaluation. Answer concisely and professionally."
+        
+        if request.evaluations:
+            evals_str = json.dumps(request.evaluations)[:15000]
+            system_prompt += f"\n\nContext - Creative Evaluations:\n{evals_str}"
+            
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        for msg in request.messages:
+            role = "assistant" if msg.get("role") == "bot" else "user"
+            content = msg.get("content", "")
+            if content:
+                messages.append({"role": role, "content": content})
+                
+        response = await query_llm(messages)
+        
+        if not response:
+            return {"error": "LLM chat failed."}
+            
+        return {"reply": response["content"]}
+            
+    except Exception as e:
+        return {"error": f"Chat failed: {str(e)}"}
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
