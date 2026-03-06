@@ -5,6 +5,10 @@ import { api } from "../api";
 import "./WizardChat.css";
 import FinalReport from "./FinalReport";
 import RoleResults from "./RoleResults";
+import {
+  generateMarkdownExport,
+  generateHTMLExport,
+} from "../utils/exportUtils";
 
 export default function WizardChat({
   onEvaluationsComplete,
@@ -392,6 +396,33 @@ export default function WizardChat({
     }
   };
 
+  const handleExport = () => {
+    const markdownContent = generateMarkdownExport(messages);
+
+    const blob = new Blob([markdownContent], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conversation-export-${new Date().toISOString().substring(0, 10)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportHTML = () => {
+    const htmlContent = generateHTMLExport(messages);
+    const blob = new Blob([htmlContent], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `council-report-${new Date().toISOString().substring(0, 10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleInputSubmit = (e) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
@@ -562,6 +593,42 @@ export default function WizardChat({
           className="send-btn"
         >
           Send
+        </button>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="export-btn"
+          title="Export Markdown"
+          style={{
+            marginLeft: "10px",
+            backgroundColor: "#21262d",
+            color: "white",
+            padding: "10px 15px",
+            borderRadius: "5px",
+            border: "1px solid #30363d",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          Export MD
+        </button>
+        <button
+          type="button"
+          onClick={handleExportHTML}
+          className="export-btn white-btn"
+          title="Download Premium HTML Report"
+          style={{
+            marginLeft: "10px",
+            backgroundColor: "#3b82f6",
+            color: "white",
+            padding: "10px 15px",
+            borderRadius: "5px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          Download Report
         </button>
       </form>
     </div>

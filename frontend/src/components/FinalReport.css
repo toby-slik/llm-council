@@ -121,6 +121,10 @@
   }
 }
 
+.report-column {
+  overflow: visible;
+}
+
 .report-column h3 {
   font-size: 1rem;
   margin-bottom: 0.75rem;
@@ -141,6 +145,10 @@
   border-radius: 6px;
   font-size: 0.95rem;
   line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  overflow: visible;
 }
 
 .strengths-list li {
