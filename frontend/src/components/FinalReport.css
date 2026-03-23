@@ -161,6 +161,24 @@
   color: #bf360c;
 }
 
+.see-more-btn {
+  background: none;
+  border: none;
+  color: #1976d2;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.see-more-btn:hover {
+  text-decoration-color: #1976d2;
+}
+
 .report-footer {
   border-top: 1px solid #eee;
   padding-top: 1.5rem;

@@ -590,6 +590,7 @@ async def analyze_context_multimodal(
              - category_clutter: "Low", "Medium", "High"
              - purchase_frequency: "High", "Medium", "Low"
              - decision_involvement: "Low", "Medium", "High"
+        7. Primary Channels / Platforms (e.g. ["Meta", "TikTok", "YouTube"]). If not mentioned and the creative is platform-agnostic, leave empty.
         
         Determine what information is clearly present or can be confidently inferred from the creative itself, and what critical information is missing.
         
@@ -604,6 +605,7 @@ async def analyze_context_multimodal(
                 "campaign_objective": "...",
                 "target_audience": "...",
                 "brand_status": "...",
+                "primary_channels": ["..."],
                 "market_context": {
                     "market_maturity": "...",
                     "category_clutter": "...",
@@ -687,6 +689,7 @@ async def clarify_brief(request: ClarifyRequest):
             "campaign_objective": "...",
             "target_audience": "...",
             "brand_status": "...",
+            "primary_channels": ["..."],
             "market_context": {{
                 "market_maturity": "...",
                 "category_clutter": "...",

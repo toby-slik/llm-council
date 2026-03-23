@@ -111,7 +111,7 @@ export default function WizardChat({
         );
       } else {
         // No gaps
-        proceedToPlatformInput(result.extracted_context);
+        proceedToEvaluation(result.extracted_context, files);
       }
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.type !== "loading"));
@@ -166,7 +166,7 @@ export default function WizardChat({
         setMessages((prev) => prev.filter((m) => m.type !== "loading"));
 
         if (finalCtx.error) throw new Error(finalCtx.error);
-        proceedToPlatformInput(finalCtx);
+        proceedToEvaluation(finalCtx);
       } catch (err) {
         setMessages((prev) => prev.filter((m) => m.type !== "loading"));
         addBotMessage(`Error synthesizing brief: ${err.message}`, "error");
@@ -176,25 +176,30 @@ export default function WizardChat({
     }
   };
 
-  const proceedToPlatformInput = (fullContext) => {
+  const proceedToEvaluation = (fullContext, overridingFiles) => {
     setFinalContext(fullContext);
-    setStep("GET_PLATFORM");
-    addBotMessage(
-      "Awesome. Our Contextual Baseline is locked. What platform(s) is this creative intended to run on? (e.g. Meta, TikTok, YouTube)",
-    );
-  };
+    
+    // Determine platforms from fullContext
+    let platforms = fullContext.primary_channels || [];
+    if (!Array.isArray(platforms) || platforms.length === 0) {
+      platforms = ["Generic Platform"];
+    }
 
-  // ----- Step 3: Extract Platforms -----
-  const handlePlatformSubmit = async (text) => {
-    addUserMessage(text);
-    const platform = text || "Generic Platform";
+    const platformFiles = {};
+    const filesToUse = overridingFiles && overridingFiles.length > 0 ? overridingFiles : initialFiles;
+    
+    if (!filesToUse || filesToUse.length === 0) {
+      addBotMessage("Error: No files found to evaluate.", "error");
+      return;
+    }
 
-    // Begin evaluation using the files uploaded in step 1
-    startEvaluations({ [platform]: initialFiles });
+    platforms.forEach(p => { platformFiles[p] = filesToUse });
+    
+    startEvaluations(platformFiles, fullContext);
   };
 
   // ----- Step 4: Run Evaluations -----
-  const startEvaluations = async (allCreatives) => {
+  const startEvaluations = async (allCreatives, resolvedContext) => {
     setStep("EVALUATING");
     addBotMessage(
       "All creatives received! The LLM Council is deliberating in parallel. This will take 1-2 minutes...",
@@ -216,15 +221,15 @@ export default function WizardChat({
         const fileB64 = await toBase64(file);
 
         const evalInput = {
-          brand_name: finalContext.brand_name || "Unknown Brand",
-          category: finalContext.category || "Unknown Category",
-          campaign_objective: finalContext.campaign_objective || "Mixed",
+          brand_name: resolvedContext.brand_name || "Unknown Brand",
+          category: resolvedContext.category || "Unknown Category",
+          campaign_objective: resolvedContext.campaign_objective || "Mixed",
           primary_channels: [platform],
           target_audience:
-            finalContext.target_audience ||
+            resolvedContext.target_audience ||
             "General Audience, reaching out to everyday people looking for a better solution in their daily lives to ensure wide market reach and adoption over time.",
-          brand_status: finalContext.brand_status || "Emerging / Growth Brand",
-          market_context: finalContext.market_context || {
+          brand_status: resolvedContext.brand_status || "Emerging / Growth Brand",
+          market_context: resolvedContext.market_context || {
             market_maturity: "Mature",
             category_clutter: "Medium",
             purchase_frequency: "Medium",
@@ -432,8 +437,6 @@ export default function WizardChat({
 
     if (step === "CLARIFY_GAPS") {
       handleClarifyAnswer(text);
-    } else if (step === "GET_PLATFORM") {
-      handlePlatformSubmit(text);
     } else if (step === "POST_EVAL" || step === "ASK_RECOMMENDATIONS") {
       handlePostEvalResponse(text);
     } else {

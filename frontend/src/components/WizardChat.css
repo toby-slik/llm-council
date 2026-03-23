@@ -24,7 +24,10 @@
   max-width: 1500px;
   width: 100%;
   border: 1px solid var(--border-color);
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    sans-serif;
 }
 
 .chat-messages {
@@ -46,13 +49,22 @@
   animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.message-bubble.bot:has(.evaluation-results-stack) {
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 .message-bubble.bot {
   align-self: flex-start;
   background-color: var(--bot-msg-bg);
   border: 1px solid var(--border-color);
   border-bottom-left-radius: 4px;
   color: var(--text-primary);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
 }
 
 .message-bubble.user {
@@ -86,12 +98,12 @@
   transition: all 0.2s ease;
   border: none;
   font-size: 14px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .upload-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
   background-color: var(--accent-hover);
 }
 
@@ -181,12 +193,20 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .markdown-content {
@@ -201,7 +221,8 @@
   overflow: hidden;
   border: 1px solid var(--border-color);
 }
-.markdown-content th, .markdown-content td {
+.markdown-content th,
+.markdown-content td {
   border: 1px solid var(--border-color);
   padding: 12px 16px;
   text-align: left;

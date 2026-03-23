@@ -328,15 +328,15 @@ def generate_final_report(
     # Extract strengths (highest confidence PASS evaluations)
     passing = [e for e in role_evaluations if e.result == "PASS" and e.score and e.score >= 7]
     passing.sort(key=lambda x: (x.score or 0) * x.confidence, reverse=True)
-    strengths = [e.justification[:200] for e in passing[:3]]
+    strengths = [e.justification for e in passing[:3]]
     
     # Extract risks (from pattern breaker and any weak scores)
     risks = []
     for eval in role_evaluations:
         if eval.role_id == 6:  # Pattern breaker
-            risks.append(eval.justification[:200])
+            risks.append(eval.justification)
         elif eval.score and eval.score < 5:
-            risks.append(f"{eval.role_name}: {eval.justification[:150]}")
+            risks.append(f"{eval.role_name}: {eval.justification}")
     risks = risks[:3]
     
     # Determine commercial role prediction

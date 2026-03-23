@@ -322,7 +322,7 @@ export function generateHTMLExport(messages) {
 <body>
     <div class="container">
         <header>
-            <h1>LLM Council: Effectiveness Report</h1>
+            <h1>Creative Effectiveness Report</h1>
             <div class="export-meta">Generated on ${dateStr}</div>
         </header>
 
