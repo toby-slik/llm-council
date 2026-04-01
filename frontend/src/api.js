@@ -23,6 +23,23 @@ export const api = {
     return response.json();
   },
 
+  async getUserStatus(token) {
+    const response = await fetch(`${API_BASE}/api/user/status`, {
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) }
+    });
+    if (!response.ok) throw new Error("Failed to get user status");
+    return response.json();
+  },
+
+  async createCheckout(token) {
+    const response = await fetch(`${API_BASE}/api/stripe/checkout`, {
+      method: "POST",
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) }
+    });
+    if (!response.ok) throw new Error("Failed to create checkout");
+    return response.json();
+  },
+
   /**
    * Get evaluation configuration (roles, backend info).
    */
@@ -140,13 +157,15 @@ export const api = {
    * Run evaluation with streaming progress updates.
    * @param {Object} data - Complete evaluation input
    * @param {function} onEvent - Callback: (eventType, eventData) => void
+   * @param {string} token - Auth Token
    * @returns {Promise<void>}
    */
-  async runEvaluationStream(data, onEvent) {
+  async runEvaluationStream(data, onEvent, token) {
     const response = await fetch(`${API_BASE}/api/creative/evaluate/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
       },
       body: JSON.stringify(data),
     });

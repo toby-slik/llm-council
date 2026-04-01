@@ -1,6 +1,6 @@
 """FastAPI backend for Creative Effectiveness Evaluation System."""
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -8,7 +8,18 @@ from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import json
+import asyncio
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+import stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+from .auth import get_current_user
+from .payments import is_user_paid, mark_user_paid
 
 from .creative_effectiveness.models import EvaluationInput, EvaluationResult
 from .creative_effectiveness.validation import validate_input, ValidationResult
@@ -849,6 +860,94 @@ async def chat_with_assistant(request: ChatRequest):
     except Exception as e:
         return {"error": f"Chat failed: {str(e)}"}
 
+
+
+@app.get("/api/user/status")
+async def user_status(user=Depends(get_current_user)):
+    user_id = user.get("sub")
+    
+    # 1. Check local cache (fast)
+    if is_user_paid(user_id):
+        return {"paid": True, "user_id": user_id}
+        
+    # 2. Real-time fallback to Stripe (since webhooks can be slow or fail locally)
+    try:
+        # Search for successful checkout sessions for this user_id
+        sessions = stripe.checkout.Session.list(
+            limit=5, # only need the most recent
+        )
+        
+        # Look for any session completed for this user_id
+        for s in sessions.auto_paging_iter():
+            if s.client_reference_id == user_id and s.payment_status == 'paid':
+                # Success! Mark them locally so next check is fast
+                mark_user_paid(user_id)
+                return {"paid": True, "user_id": user_id}
+                
+    except Exception as e:
+        print(f"STRIIPE FALLBACK CHECK FAILED: {e}")
+        
+    return {"paid": False, "user_id": user_id}
+
+@app.post("/api/stripe/checkout")
+async def create_checkout(request: Request, user=Depends(get_current_user)):
+    user_id = user.get("sub")
+    origin = request.headers.get("origin", "http://localhost:5173")
+    
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': os.getenv("STRIPE_PRICE_ID"),
+                'quantity': 1,
+            }],
+            mode='payment',
+            client_reference_id=user_id,
+            success_url=f"{origin}?payment=success",
+            cancel_url=f"{origin}?payment=cancelled",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    print("WEBHOOK RECEIVED")
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    
+    if webhook_secret and sig_header:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+        except ValueError as e:
+            print(f"WEBHOOK ERROR (ValueError): {e}")
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        except stripe.error.SignatureVerificationError as e:
+            print(f"WEBHOOK ERROR (SigError): {e}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    else:
+        # If no secret, we assume local dev and trust the JSON directly
+        # WARNING: Only for dev! Signature check is essential for prod!
+        print("WEBHOOK: BYPASSING SIGNATURE CHECK (No STRIPE_WEBHOOK_SECRET found)")
+        try:
+            event = json.loads(payload)
+        except Exception as e:
+            print(f"WEBHOOK ERROR (ParseError): {e}")
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        
+    print(f"WEBHOOK EVENT: {event.get('type')}")
+    if event.get('type') == 'checkout.session.completed':
+        session = event.get('data', {}).get('object', {})
+        client_reference_id = session.get("client_reference_id")
+        print(f"WEBHOOK: SESSION COMPLETED for {client_reference_id}")
+        if client_reference_id:
+            mark_user_paid(client_reference_id)
+            print(f"WEBHOOK: User {client_reference_id} marked as paid.")
+            
+    return {"status": "success"}
 
 
 if __name__ == "__main__":
