@@ -14,12 +14,19 @@ def get_clerk_jwks_url() -> str:
     """Derive the public JWKS URL from the Clerk publishable key."""
     import base64
     pub_key = os.getenv("VITE_CLERK_PUBLISHABLE_KEY", "")
+    
+    if not pub_key:
+        # Fallback for development
+        return "https://api.clerk.com/v1/jwks"
+
     # Strip pk_test_ or pk_live_ prefix, then base64-decode to get the clerk domain
     raw = pub_key.replace("pk_test_", "").replace("pk_live_", "")
     try:
         # Pad to multiple of 4 for valid base64
         padding = "=" * (-len(raw) % 4)
         decoded = base64.b64decode(raw + padding).decode("utf-8").rstrip("$")
+        if not decoded:
+             return "https://api.clerk.com/v1/jwks"
         return f"https://{decoded}/.well-known/jwks.json"
     except Exception:
         # Fallback for development

@@ -33,11 +33,11 @@ GEMINI_MODELS = {
 
 # Fallback free models via OpenRouter
 OPENROUTER_MODELS = [
+    "google/gemini-3-flash-preview",
+    "google/gemini-3.1-flash-lite-preview",
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "tngtech/deepseek-r1t2-chimera:free",
     "z-ai/glm-4.5-air:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
 ]
 
 # ============================================================================

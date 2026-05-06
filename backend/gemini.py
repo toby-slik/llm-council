@@ -39,19 +39,43 @@ async def query_gemini(
         role = msg.get("role", "user")
         content = msg.get("content", "")
         
-        if role == "system":
-            # Gemini handles system prompts differently
-            system_instruction = content
-        elif role == "assistant":
-            contents.append({
-                "role": "model",
-                "parts": [{"text": content}]
-            })
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if item.get("type") == "text":
+                    parts.append({"text": item.get("text", "")})
+                elif item.get("type") == "image_url":
+                    url = item.get("image_url", {}).get("url", "")
+                    if url.startswith("data:"):
+                        # Extract mime_type and base64 data
+                        import re
+                        match = re.match(r"data:(.*?);base64,(.*)", url)
+                        if match:
+                            mime_type, b64_data = match.groups()
+                            parts.append({
+                                "inlineData": {
+                                    "mimeType": mime_type,
+                                    "data": b64_data
+                                }
+                            })
+            if role == "assistant":
+                contents.append({"role": "model", "parts": parts})
+            else:
+                contents.append({"role": "user", "parts": parts})
         else:
-            contents.append({
-                "role": "user", 
-                "parts": [{"text": content}]
-            })
+            if role == "system":
+                # Gemini handles system prompts differently
+                system_instruction = content
+            elif role == "assistant":
+                contents.append({
+                    "role": "model",
+                    "parts": [{"text": content}]
+                })
+            else:
+                contents.append({
+                    "role": "user", 
+                    "parts": [{"text": content}]
+                })
     
     # Build request
     url = f"{GEMINI_API_URL}/{model}:generateContent?key={GOOGLE_API_KEY}"

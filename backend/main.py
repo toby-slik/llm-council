@@ -34,7 +34,7 @@ app = FastAPI(title="Creative Effectiveness Evaluation API")
 if os.getenv("VERCEL"):
     allow_origins = ["*"]
 else:
-    allow_origins = ["http://localhost:5173", "http://localhost:3000"]
+    allow_origins = ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174", "*"]
 
 app.add_middleware(
     CORSMiddleware,

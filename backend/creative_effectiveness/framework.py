@@ -42,7 +42,7 @@ LAYER_A = Layer(
             score_type="1-5",
             fail_condition="Flat, neutral, or confusion-led response",
             evaluation_mechanic="""1) Isolate only the first exposure viewing.
-2) Examine the first 2–3 seconds independently of narrative context.
+2) Examine the initial impact (first 2–3 seconds for video, or first glance for static images) independently of narrative context.
 3) Identify whether a recognisable emotion is immediately present without verbal or cognitive explanation.
 4) Apply the following test: if the emotion cannot be named without explaining the story, cap score at 2.
 5) Assign score based on immediacy and clarity of affective signal.
@@ -153,18 +153,18 @@ LAYER_D = Layer(
             score_type="low/medium/high",
             fail_condition="Relies on forced exposure assumptions",
             evaluation_mechanic="""1) Identify primary channel and viewing conditions.
-2) Evaluate creative against scroll speed, clutter, sound defaults.
+2) Evaluate creative against scroll speed, clutter, and sound defaults (if applicable).
 3) If attention relies on media weight alone, score Low.
 4) If creative earns attention through pattern-break or relevance, score Medium or High.
 5) Lock score."""
         ),
         SubCriterion(
             id="D2",
-            name="Early Frame Performance",
-            question="Are the opening frames strong enough for scroll environments?",
+            name="Early Frame / Initial Impact Performance",
+            question="Are the opening frames or initial visual focus strong enough for scroll environments?",
             score_type="weak/adequate/strong",
             fail_condition="Slow-burn concepts in fast-scroll contexts",
-            evaluation_mechanic="""1) Isolate opening frames.
+            evaluation_mechanic="""1) Isolate opening frames (for video) or the immediate focal point (for static).
 2) Check for immediate intrigue, brand cue, or disruption.
 3) If none present, score Weak.
 4) If present but delayed, score Adequate.

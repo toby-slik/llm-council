@@ -132,7 +132,9 @@ async def evaluate_with_role(
     input_data: EvaluationInput,
     contextual_baseline: ContextualBaseline,
     query_func,  # Async function to query the LLM
-    on_role_complete=None  # Optional callback for progress updates
+    on_role_complete=None,  # Optional callback for progress updates
+    base64_image=None,
+    mime_type=None
 ) -> RoleEvaluation:
     """
     Run evaluation for a single role.
@@ -143,6 +145,8 @@ async def evaluate_with_role(
         contextual_baseline: Locked contextual baseline
         query_func: Async function (messages) -> response
         on_role_complete: Optional callback(role_name, result, status, justification)
+        base64_image: Optional base64 encoded image string
+        mime_type: Optional mime type string
         
     Returns:
         RoleEvaluation result
@@ -154,8 +158,18 @@ async def evaluate_with_role(
     
     messages = [
         {"role": "system", "content": role.system_prompt},
-        {"role": "user", "content": eval_prompt},
     ]
+    
+    if base64_image and mime_type:
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": eval_prompt},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}}
+            ]
+        })
+    else:
+        messages.append({"role": "user", "content": eval_prompt})
     
     try:
         # Query the LLM
@@ -454,13 +468,36 @@ async def run_creative_evaluation(
     # Step 1: Lock contextual baseline
     contextual_baseline = build_contextual_baseline(input_data)
     
+    # Step 1.5: Fetch image if URL provided
+    base64_image = None
+    mime_type = None
+    if input_data.creative.file_path and input_data.creative.file_path.startswith("http"):
+        if on_role_complete:
+            # Inform user we are fetching the creative
+            for role in get_all_roles():
+                on_role_complete(role.name, None, status="queued", justification="Fetching creative asset...")
+        try:
+            import httpx
+            import base64
+            import mimetypes
+            
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(input_data.creative.file_path)
+                if resp.status_code == 200:
+                    base64_image = base64.b64encode(resp.content).decode("utf-8")
+                    mime_type = resp.headers.get("Content-Type", "image/jpeg")
+                    # simple fallback if missing
+                    if not mime_type or mime_type == "application/octet-stream":
+                        mime_type = mimetypes.guess_type(input_data.creative.file_path)[0] or "image/jpeg"
+        except Exception as e:
+            print(f"Failed to fetch image: {e}")
+
     # Step 2: Run all role evaluations in parallel
     roles = get_all_roles()
     
-    # Notify initial status for all roles
-    if on_role_complete:
+    # Notify initial status for all roles (if not already done)
+    if on_role_complete and not base64_image:
         for role in roles:
-            # We use the same callback for status updates
             on_role_complete(role.name, None, status="queued")
     
     # Added Semaphore to limit concurrency and avoid 429/503 rate limits on Gemini
@@ -471,7 +508,12 @@ async def run_creative_evaluation(
             if on_role_complete:
                 on_role_complete(role.name, None, status="processing")
             
-            result = await evaluate_with_role(role, input_data, contextual_baseline, query_func, on_role_complete=on_role_complete)
+            result = await evaluate_with_role(
+                role, input_data, contextual_baseline, query_func, 
+                on_role_complete=on_role_complete,
+                base64_image=base64_image,
+                mime_type=mime_type
+            )
             
             if on_role_complete:
                 on_role_complete(role.name, result, status="complete")
