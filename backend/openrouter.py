@@ -31,39 +31,48 @@ async def query_model(
         "messages": messages,
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                OPENROUTER_API_URL,
-                headers=headers,
-                json=payload
-            )
-            
-            if response.status_code == 429:
-                raise Exception(f"OpenRouter Error 429: {response.text}")
-            
-            if response.status_code != 200:
-                print(f"OpenRouter Error {response.status_code}: {response.text}")
-            response.raise_for_status()
-            
-            data = response.json()
-            if 'choices' not in data or not data['choices']:
-                print(f"OpenRouter returned no choices: {data}")
-                return None
+    import asyncio
+    
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    OPENROUTER_API_URL,
+                    headers=headers,
+                    json=payload
+                )
                 
-            message = data['choices'][0]['message']
-            
-            return {
-                'content': message.get('content'),
-                'reasoning_details': message.get('reasoning_details')
-            }
+                if response.status_code == 429:
+                    if attempt < 2:
+                        print(f"OpenRouter API 429 received. Retrying in {(attempt + 1) * 3}s...")
+                        await asyncio.sleep((attempt + 1) * 3)
+                        continue
+                    raise Exception(f"OpenRouter Error 429: Rate limit exceeded. {response.text}")
+                
+                if response.status_code != 200:
+                    print(f"OpenRouter Error {response.status_code}: {response.text}")
+                response.raise_for_status()
+                
+                data = response.json()
+                if 'choices' not in data or not data['choices']:
+                    print(f"OpenRouter returned no choices: {data}")
+                    return None
+                    
+                message = data['choices'][0]['message']
+                
+                return {
+                    'content': message.get('content'),
+                    'reasoning_details': message.get('reasoning_details')
+                }
 
-    except Exception as e:
-        # Re-raise 429 specifically so it can be handled by the UI/orchestrator
-        if "429" in str(e):
-            raise e
-        print(f"Error querying model {model}: {e}")
-        return None
+        except Exception as e:
+            if "429" in str(e):
+                if attempt < 2:
+                    await asyncio.sleep((attempt + 1) * 3)
+                    continue
+                raise e
+            print(f"Error querying model {model}: {e}")
+            return None
 
 
 async def query_models_parallel(

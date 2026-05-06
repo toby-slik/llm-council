@@ -500,8 +500,8 @@ async def run_creative_evaluation(
         for role in roles:
             on_role_complete(role.name, None, status="queued")
     
-    # Added Semaphore to limit concurrency and avoid 429/503 rate limits on Gemini
-    sem = asyncio.Semaphore(2)
+    # Limit concurrency strictly to 1 to avoid 429 rate limits on free tiers
+    sem = asyncio.Semaphore(1)
     
     async def evaluate_role(role: RoleDefinition) -> RoleEvaluation:
         async with sem:
@@ -517,6 +517,10 @@ async def run_creative_evaluation(
             
             if on_role_complete:
                 on_role_complete(role.name, result, status="complete")
+                
+            # Add a small delay between requests to help respect RPM limits
+            await asyncio.sleep(2.0)
+            
             return result
     
     role_evaluations = await asyncio.gather(*[evaluate_role(r) for r in roles])
